@@ -17,7 +17,7 @@ pip install seaborn
 ## Background
 
 In survival analysis, we observe $(x,T,\delta)$ triplets where $\delta$ is `True` if the event was actually observed and `False` if censored.
-- The hazard function for an individual is the instantaneous probability of event occurrence at a time given survival up to that time: $\lim_{\Delta t\to 0}\frac{\Pr[T\in[t,t+\Delta t)|T\geq t]}{\Delta t}$.
+- The hazard function for an individual is the instantaneous probability of event occurrence at a time given survival up to that time: $h(t)=\lim_{\Delta t\to 0}\frac{\Pr[T\in[t,t+\Delta t)|T\geq t]}{\Delta t}$.
 - The cumulative hazard function is the cumulative hazard until a specified time: $H(t)=\int_0^t h(u)du$.
 - The survival function for an individual is the probability to survive that time: $S(t)=\Pr[T>t]=\exp(-H(t))$.
 
@@ -27,9 +27,12 @@ We use coding conventions based off of [scikit-survival](https://scikit-survival
 
 In particular, that means that a survival analysis model must follow this API:
 - Fitting procedure invoked by `.fit(X,Y)`
-- Hazard function recovered from `.predict(X)`
-- Cumulative hazard function recovered from `.predict_cumulative_hazard(X)`
-- Survival function recovered from `.predict_survival_function(X)`
+- The baseline hazard rate recovered from `.cum_baseline_hazard_`, often determined via Breslow's estimator.
+- The time-independent (individual-dependent) risk score recovered from `.predict(X)`
+- The time-dependent cumulative hazard function recovered from `.predict_cumulative_hazard(X)`
+- The time-dependent survival function recovered from `.predict_survival_function(X)`
+
+For example, the Cox PH model's `.predict(X)` returns the $\beta^Tx$ that is part of the cumulative hazard function $H(t)=H_0(t)\exp(\beta^Tx)$.
 
 Our code is organized as follows:
 - `dataset_utils.py` details the loading and processing of a survival analysis dataset.
