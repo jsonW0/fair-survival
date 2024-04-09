@@ -14,14 +14,28 @@ pip install plotly
 pip install seaborn
 ```
 
+## Background
+
+In survival analysis, we observe $(x,T,\delta)$ triplets where $\delta$ is `True` if the event was actually observed and `False` if censored.
+- The hazard function for an individual is the instantaneous probability of event occurrence at a time given survival up to that time: $\lim_{\Delta t\to 0}\frac{\Pr[T\in[t,t+\Delta t)|T\geq t]}{\Delta t}$.
+- The cumulative hazard function is the cumulative hazard until a specified time: $H(t)=\int_0^t h(u)du$.
+- The survival function for an individual is the probability to survive that time: $S(t)=\Pr[T>t]=\exp(-H(t))$.
+
 ## Code Organization
 
 We use coding conventions based off of [scikit-survival](https://scikit-survival.readthedocs.io/en/stable).
 
-`dataset_utils.py` details the loading and processing of a survival analysis dataset.
+In particular, that means that a survival analysis model must follow this API:
+- Fitting procedure invoked by `.fit(X,Y)`
+- Hazard function recovered from `.predict(X)`
+- Cumulative hazard function recovered from `.predict_cumulative_hazard(X)`
+- Survival function recovered from `.predict_survival_function(X)`
 
-`metrics.py` details the metrics (accuracy, fairness) for evaluation on a survival analysis dataset and the survival predictions.
+Our code is organized as follows:
+- `dataset_utils.py` details the loading and processing of a survival analysis dataset.
+- `metrics.py` details the metrics (accuracy, fairness) for evaluation on a survival analysis dataset and the survival predictions.
+- `data/` is a folder dedicated to holding any custom datasets.
+- `models/` is a folder dedicated to holding any saved models.
 
-`data/` is a folder dedicated to holding any custom datasets.
-
-`models/` is a folder dedicated to holding any saved models.
+## Citations
+Keya et al. 2021: https://github.com/kkeya1/FairSurv
