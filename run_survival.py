@@ -1,4 +1,5 @@
 import os
+import time
 import argparse
 import numpy as np
 import pandas as pd
@@ -7,6 +8,15 @@ from sksurv.linear_model import CoxPHSurvivalAnalysis
 from dataset_utils import load_dataset
 from dataset_utils import preprocess_dataset
 import metrics
+
+'''
+Script run_survival.py
+
+Loads a model, dataset, and runs evaluation metrics.
+
+Example Usage:
+python run_survival.py --model "coxph" --dataset "whas500"
+'''
 
 def main():
     parser = argparse.ArgumentParser()
@@ -47,4 +57,7 @@ def main():
         f.write(f"Keya Individual: {keya_individual}\n")
 
 if __name__ == "__main__":
+    start_time = time.perf_counter()
     main()
+    end_time = time.perf_counter()
+    print(f"Experiment took {end_time-start_time} seconds.")
