@@ -1,5 +1,10 @@
-from sksurv.datasets import load_flchain, load_whas500
 import pandas as pd
+from sksurv.datasets import load_flchain, load_whas500
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.impute import SimpleImputer, MissingIndicator
+from sklearn.pipeline import Pipeline, FeatureUnion
+from sklearn.compose import ColumnTransformer
 
 def load_dataset(dataset_name: str) -> pd.DataFrame:
     '''
@@ -31,7 +36,7 @@ def load_dataset(dataset_name: str) -> pd.DataFrame:
             raise NotImplementedError(f"Dataset not found: {dataset_name}")
     return dataset
 
-def preprocess_dataset(dataset: pd.DataFrame) -> pd.DataFrame:
+def preprocess_dataset(dataset: pd.DataFrame, ) -> tuple[pd.DataFrame,pd.DataFrame,pd.DataFrame,pd.DataFrame]:
     '''
     Preprocesses a loaded survival analysis dataset
 
@@ -39,7 +44,32 @@ def preprocess_dataset(dataset: pd.DataFrame) -> pd.DataFrame:
         dataset (pd.DataFrame): The dataset to be preprocessed.
 
     Returns:
-        pd.DataFrame: The preprocessed dataset.
+        X_train, X_test, Y_train, Y_test: The preprocessed datasets and their splits.
     '''
-    return dataset
-    raise NotImplementedError()
+    # Split X and Y
+    X = dataset[dataset.columns.difference(['censorship', 'event_time'])]
+    Y = dataset[["censorship","event_time"]]
+
+    # Train Test Split
+    X_train, X_test, Y_train, Y_test = train_test_split(X,Y,test_size=0.2,random_state=226,shuffle=True)
+
+    # Some Default Preprocessing (imputation, onehot or scaling)
+    categorical_cols = X.select_dtypes(include=['object', 'category']).columns
+    numeric_cols = X.select_dtypes(include=['number']).columns
+    transformer = Pipeline([
+        ('preprocess', ColumnTransformer([
+            ('cat', Pipeline([
+                ('imputer', SimpleImputer(strategy='most_frequent', add_indicator=True)),
+                ('onehot', OneHotEncoder(handle_unknown='ignore',sparse_output=False))
+            ]), categorical_cols),
+            ('num', Pipeline([
+                ('imputer', SimpleImputer(strategy='mean', add_indicator=True)),
+                ('scaler', StandardScaler())
+            ]), numeric_cols)
+        ])),
+    ]).set_output(transform="pandas").fit(X_train)
+    X_train = transformer.transform(X_train)
+    X_test = transformer.transform(X_test)
+
+    return X_train, X_test, Y_train, Y_test
+    

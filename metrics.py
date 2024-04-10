@@ -64,7 +64,6 @@ def keya_intersectional_fairness(S: Iterable[Iterable[bool]], individual_risk: I
         float: the computed group fairness.
     '''
     individual_risk = np.exp(individual_risk)
-    avg_risk = np.mean(individual_risk)
     group_avg_risks = [np.mean(individual_risk[S[i]]) for i in range(S.shape[0])]
     max_diff = 0.
     for i in range(S.shape[0]):
