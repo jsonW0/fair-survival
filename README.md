@@ -35,8 +35,10 @@ In particular, that means that a survival analysis model must follow this API:
 For example, the Cox PH model's `.predict(X)` returns the $\beta^Tx$ that is part of the cumulative hazard function $H(t)=H_0(t)\exp(\beta^Tx)$.
 
 Our code is organized as follows:
+- `run_survival.py` is the script for running an experiment.
 - `dataset_utils.py` details the loading and processing of a survival analysis dataset.
 - `metrics.py` details the metrics (accuracy, fairness) for evaluation on a survival analysis dataset and the survival predictions.
+- `scripts/` is a folder dedicated to holding any experiment bash scripts.
 - `data/` is a folder dedicated to holding any custom datasets.
 - `models/` is a folder dedicated to holding any saved models.
 
