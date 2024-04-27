@@ -33,7 +33,7 @@ def main():
 
     # Load survival dataset
     dataset = load_dataset(args.dataset)
-    X_train, X_test, Y_train, Y_test = preprocess_dataset(dataset)
+    X_train, X_test, Y_train, Y_test, G_train, G_test = preprocess_dataset(dataset)
 
     # Train an estimator
     estimator = CoxPHSurvivalAnalysis(alpha=0.1).fit(X_train, Y_train.to_records(index=False))

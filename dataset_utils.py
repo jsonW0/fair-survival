@@ -14,9 +14,10 @@ def load_dataset(dataset_name: str) -> pd.DataFrame:
 
     The `event_indicator` column is a boolean that is False if censored (e.g., by end of study) and True if not (e.g., event occurred).
     The `event_time` column is a float representing the time until the event.
+    The `demographic_group` column is an integer representing the demographic group that each individual belongs to.
 
     Args:
-        dataset_name (str): The name of a known dataset, or a filepath to a .csv file. If specifying a .csv file, the "event_indicator" and "event_time" column must exist.
+        dataset_name (str): The name of a known dataset, or a filepath to a .csv file. If specifying a .csv file, the "event_indicator", "event_time", and "demographic_group" column must exist.
 
     Returns:
         pd.DataFrame: The loaded dataset obeying the conventions of survival analysis (see function summary).
@@ -29,20 +30,22 @@ def load_dataset(dataset_name: str) -> pd.DataFrame:
     if dataset_name=="flchain":
         dataset = pd.concat((load_flchain()[0],pd.DataFrame(load_flchain()[1])),axis=1)
         dataset.rename(columns={'death': 'event_indicator', 'futime': 'event_time'}, inplace=True)
+        dataset["demographic_group"] = dataset["sex"]
     elif dataset_name=="whas500":
         dataset = pd.concat((load_whas500()[0],pd.DataFrame(load_whas500()[1])),axis=1)
         dataset.rename(columns={'fstat': 'event_indicator', 'lenfol': 'event_time'}, inplace=True)
+        dataset["demographic_group"] = dataset["gender"]
     # Load user-specified dataset
     else:
         try:
             dataset = pd.read_csv(dataset_name)
         except:
             raise NotImplementedError(f"Dataset not found: {dataset_name}")
-        if "event_indicator" not in dataset.columns or "event_time" not in dataset.columns:
-            raise ValueError("User-specified .csv must contain a 'event_indicator' and 'event_time' column.")
+        if "event_indicator" not in dataset.columns or "event_time" not in dataset.columns or "demographic_group" not in dataset.columns:
+            raise ValueError("User-specified .csv must contain a 'event_indicator', 'event_time', and 'demographic_group' column.")
     return dataset
 
-def preprocess_dataset(dataset: pd.DataFrame, ) -> tuple[pd.DataFrame,pd.DataFrame,pd.DataFrame,pd.DataFrame]:
+def preprocess_dataset(dataset: pd.DataFrame) -> tuple[pd.DataFrame,pd.DataFrame,pd.DataFrame,pd.DataFrame,pd.DataFrame,pd.DataFrame]:
     '''
     Preprocesses a loaded survival analysis dataset
 
@@ -50,14 +53,20 @@ def preprocess_dataset(dataset: pd.DataFrame, ) -> tuple[pd.DataFrame,pd.DataFra
         dataset (pd.DataFrame): The dataset to be preprocessed.
 
     Returns:
-        X_train, X_test, Y_train, Y_test: The preprocessed datasets and their splits.
+        X_train, X_test, Y_train, Y_test, G_train, G_test: The preprocessed datasets (x, y, group) and their splits.
     '''
     # Split X and Y
-    X = dataset[dataset.columns.difference(['event_indicator', 'event_time'])]
-    Y = dataset[["event_indicator","event_time"]]
+    X = dataset[dataset.columns.difference(['event_indicator', 'event_time', 'demographic_group'])]
+    Y = dataset[["event_indicator","event_time","demographic_group"]]
 
     # Train Test Split
     X_train, X_test, Y_train, Y_test = train_test_split(X,Y,test_size=0.2,random_state=226,shuffle=True)
+   
+    # Extract Group
+    G_train = Y_train["demographic_group"]
+    Y_train = Y_train[Y_train.columns.difference(["demographic_group"])]
+    G_test = Y_test["demographic_group"]
+    Y_test = Y_test[Y_test.columns.difference(["demographic_group"])]
 
     # Some Default Preprocessing (missing imputation and either onehot or scaling)
     categorical_cols = X.select_dtypes(include=['object', 'category']).columns
@@ -77,7 +86,7 @@ def preprocess_dataset(dataset: pd.DataFrame, ) -> tuple[pd.DataFrame,pd.DataFra
     X_train = transformer.transform(X_train)
     X_test = transformer.transform(X_test)
 
-    return X_train, X_test, Y_train, Y_test
+    return X_train, X_test, Y_train, Y_test, G_train, G_test
     
 def generate_synthetic_dataset(
     N: int,
@@ -124,12 +133,27 @@ def generate_synthetic_dataset(
 
         seed (int): random seed
     """
-    # dataset = np.zeros(N,D+2)
-    dataset = []
-    for group in range(G):
-        group_size = int(repr[G]*N)
-        individuals = np.random.randn(group_size,D)@std[G]+mean[G]
-        T = scale[G]*np.random.weibull(a=shape[G],size=group_size)
-        
+    rng = np.random.default_rng(seed)
+    features = []
+    groups = []
+    times = []
+    deltas = []
+    for i in range(N):
+        group = rng.choice(G,p=repr)
+        attribute = rng.standard_normal(D)@std[group]+mean[group]
+        time = scale[group]*rng.weibull(shape[group])
+        delta = 1
+        if rng.random() < censorship_repr[group]+np.linalg.norm(attribute-censorship_mean[group],ord=2)/censorship_temp[group]:
+            delta = 0
+            time = time * rng.uniform(censorship_times[group][0],censorship_times[group][1])
 
+        features.append(attribute)
+        groups.append(group)
+        times.append(time)
+        deltas.append(delta)
+    features = np.array(features)
+    dataset = {f"Feature_{i}":features[:,i] for i in range(D)}
+    dataset["demographic_group"] = groups
+    dataset["event_time"] = times
+    dataset["event_indicator"] = deltas
     return pd.DataFrame(dataset)
