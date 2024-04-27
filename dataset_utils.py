@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from sksurv.datasets import load_flchain, load_whas500
 from sklearn.model_selection import train_test_split
@@ -5,6 +6,7 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
+from typing import Iterable
 
 def load_dataset(dataset_name: str) -> pd.DataFrame:
     '''
@@ -77,3 +79,57 @@ def preprocess_dataset(dataset: pd.DataFrame, ) -> tuple[pd.DataFrame,pd.DataFra
 
     return X_train, X_test, Y_train, Y_test
     
+def generate_synthetic_dataset(
+    N: int,
+    G: int,
+    D: int,
+    repr: Iterable[float],
+    censorship_repr: Iterable[float],
+    mean: Iterable[Iterable[float]],
+    std: Iterable[Iterable[Iterable[float]]],
+    scale: Iterable[float],
+    shape: Iterable[float],
+    censorship_mean: Iterable[Iterable[float]],
+    censorship_temp: Iterable[Iterable[float]],
+    censorship_times: Iterable[Iterable[float]],
+    seed: int,
+) -> pd.DataFrame:
+    """
+    Generates a synthetic dataset
+    
+    Assumes:
+        Disjoint demographic groups (rho)
+        Normally distributed attributes (mu,sigma)
+        Weibull distributed survival times (lambda, k)
+        Censorship probability proportional to distance to a (potentially separate) mean attribute (pi,phi,tau)
+        Uniformly distributed (over percentile of survival times) right-censorship times (a,b)
+
+    Parameters:
+        N (int): number of total individuals
+        G (int): number of groups
+        D (int): dimension of representation
+
+        repr (G float): rho, the overall proportion of each demographic in the dataset
+        censorship_repr (G float): pi, the censorship proportion of each demographic in the dataset
+
+        mean (G x D float): mu, the mean vectors of each demographic
+        std (G x D x D float): Sigma, the covariance matrices for each demographic
+
+        scale (G float): lambda, the scale parameter of weibull distribution determining survival times for each demographic group
+        shape (G float): k, the shape parameter of weibull distribution determining survival times for each demographic group
+
+        censorship_mean (G x D float): phi, the mean vectors of censored data in each demgoraphic (probability related to distance to this vector)
+        censorship_temp (G x D float): tau, the temperature of sampling based on distance to censorship_mu
+        censorship_times (G x 2 float): a, b, the lower and upper percentiles for right-censoring the times for each demographic group
+
+        seed (int): random seed
+    """
+    # dataset = np.zeros(N,D+2)
+    dataset = []
+    for group in range(G):
+        group_size = int(repr[G]*N)
+        individuals = np.random.randn(group_size,D)@std[G]+mean[G]
+        T = scale[G]*np.random.weibull(a=shape[G],size=group_size)
+        
+
+    return pd.DataFrame(dataset)
