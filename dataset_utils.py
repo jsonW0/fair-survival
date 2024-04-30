@@ -128,7 +128,7 @@ def generate_synthetic_dataset(
         shape (G float): k, the shape parameter of weibull distribution determining survival times for each demographic group
 
         censorship_mean (G x D float): phi, the mean vectors of censored data in each demgoraphic (probability related to distance to this vector)
-        censorship_temp (G x D float): tau, the temperature of sampling based on distance to censorship_mu
+        censorship_temp (G float): tau, the temperature of sampling based on distance to censorship_mean
         censorship_times (G x 2 float): a, b, the lower and upper percentiles for right-censoring the times for each demographic group
 
         seed (int): random seed
@@ -155,5 +155,5 @@ def generate_synthetic_dataset(
     dataset = {f"Feature_{i}":features[:,i] for i in range(D)}
     dataset["demographic_group"] = groups
     dataset["event_time"] = times
-    dataset["event_indicator"] = deltas
+    dataset["event_indicator"] = np.array(deltas).astype(bool)
     return pd.DataFrame(dataset)
