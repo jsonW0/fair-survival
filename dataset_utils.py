@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from sksurv.datasets import load_flchain, load_whas500, load_aids, load_breast_cancer
+from sksurv.datasets import load_flchain, load_whas500, load_aids, load_breast_cancer, load_gbsg2, load_veterans_lung_cancer
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.impute import SimpleImputer
@@ -28,10 +28,12 @@ def load_dataset(dataset_name: str) -> pd.DataFrame:
     dataset = None
     # Load built-in dataset
     # make sure false = censored for event_indicator
+    # TODO: turn columns into string
     if dataset_name=="flchain":
         dataset = pd.concat((load_flchain()[0],pd.DataFrame(load_flchain()[1])),axis=1)
         dataset.rename(columns={'death': 'event_indicator', 'futime': 'event_time'}, inplace=True)
-        dataset["demographic_group"] = dataset["sex"]
+        dataset["death"] = [dataset["death"] == 'F']
+        dataset["demographic_group"] = [dataset["sex"] == 'F']
     elif dataset_name=="whas500":
         dataset = pd.concat((load_whas500()[0],pd.DataFrame(load_whas500()[1])),axis=1)
         dataset.rename(columns={'fstat': 'event_indicator', 'lenfol': 'event_time'}, inplace=True)
@@ -44,6 +46,15 @@ def load_dataset(dataset_name: str) -> pd.DataFrame:
         dataset = pd.concat((load_breast_cancer()[0],pd.DataFrame(load_breast_cancer()[1])),axis=1)
         dataset.rename(columns={'e.tdm': 'event_indicator', 't.tdm': 'event_time'}, inplace=True)
         dataset["demographic_group"] = dataset["age"]
+    elif dataset_name=="gbsg2":
+        dataset = pd.concat((load_gbsg2()[0],pd.DataFrame(load_gbsg2()[1])),axis=1)
+        dataset.rename(columns={'cens': 'event_indicator', 'time': 'event_time'}, inplace=True)
+        dataset["demographic_group"] = dataset["age"]
+    elif dataset_name=="veterans_lung_cancer":
+        dataset = pd.concat((load_veterans_lung_cancer()[0],pd.DataFrame(load_veterans_lung_cancer()[1])),axis=1)
+        dataset.rename(columns={'Status': 'event_indicator', 'Survival_in_days': 'event_time'}, inplace=True)
+        dataset["demographic_group"] = dataset["Age_in_years"]
+        
     # Load user-specified dataset
     else:
         try:

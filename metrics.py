@@ -92,7 +92,7 @@ def equal_opportunity(X: Iterable[Iterable[float]], g: Iterable[int], t: Iterabl
 
     return eo_probs
 
-def keya_individual_fairness(X: Iterable[Iterable[float]], estimate: Iterable[float], alpha: Optional[float], distance: Optional[Callable] = lambda x,y: np.linalg.norm(x-y,ord=2)):
+def keya_individual_fairness(X: Iterable[Iterable[float]], estimate: Iterable[float], alpha: Optional[float] = 1., distance: Optional[Callable] = lambda x,y: np.linalg.norm(x-y,ord=2)):
     '''
     Computes individual fairness as proposed by Keya et al. 2021. I.e., the sum of positive difference between estimate space and attribute space.
 
@@ -207,7 +207,7 @@ def rahman_censorship_individual_fairness(X: Iterable[Iterable[float]], estimate
                 deviation = max(0,np.abs(estimate[i]-estimate[j])-alpha*distance(X[i],X[j]))
                 total_deviation+=deviation
                 max_deviation = max(max_deviation,deviation)
-    return total_deviation/(len(np.argwhere(~event_indicator))*np.argwhere(event_indicator)), max_deviation
+    return total_deviation/(len(np.argwhere(~event_indicator))*len(np.argwhere(event_indicator))), max_deviation
 
 
 def rahman_censorship_group_fairness(X: Iterable[Iterable[float]], estimate: Iterable[float], group_membership: Iterable[Iterable[bool]], event_time: Iterable[float], event_indicator: Iterable[float], alpha: Optional[float] = 1., distance: Optional[Callable] = lambda x,y: np.linalg.norm(x-y,ord=2)):
@@ -244,11 +244,11 @@ def rahman_censorship_group_fairness(X: Iterable[Iterable[float]], estimate: Ite
     '''
     total_deviation = 0
     max_deviation = 0
-    for group in np.unique(group_membership):
-        for i in np.argwhere((~event_indicator)[group_membership==group]): #censored
-            for j in np.argwhere(event_indicator[group_membership==group]): # uncensored
+    for group in range(group_membership.shape[0]):
+        for i in np.argwhere((~event_indicator)[group_membership[group]]): #censored
+            for j in np.argwhere(event_indicator[group_membership[group]]): # uncensored
                 if event_time[i]<=event_time[j]:
-                    deviation = max(0,np.abs(estimate[i]-estimate[j])-alpha*distance(X[i],X[j]))
+                    deviation = max(0,np.abs(estimate[group_membership[group]][i]-estimate[group_membership[group]][j])-alpha*distance(X[group_membership[group]][i],X[group_membership[group]][j]))
                     total_deviation+=deviation
                     max_deviation = max(max_deviation,deviation)
-    return total_deviation/(len(np.argwhere(~event_indicator))*np.argwhere(event_indicator)), max_deviation
+    return total_deviation/(len(np.argwhere(~event_indicator))*len(np.argwhere(event_indicator))), max_deviation

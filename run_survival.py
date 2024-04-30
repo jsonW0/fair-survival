@@ -97,19 +97,27 @@ def main():
         plt.savefig(f"results/{args.experiment_name}/{args.experiment_name}_cumulative_dynamic_auc.png")
 
         # Fairness metrics
-        keya_individual_total, keya_individual_max = metrics.keya_individual_fairness(np.array(X_test),np.exp(test_risk_scores))
+        keya_individual_total, keya_individual_max = metrics.keya_individual_fairness(X_test.to_numpy(),np.exp(test_risk_scores))
         keya_group = metrics.keya_group_fairness(np.exp(test_risk_scores),G_test.to_numpy()==np.unique(G_test.to_numpy())[:,None])
         keya_intersectional = metrics.keya_intersectional_fairness(np.exp(test_risk_scores),G_test.to_numpy()==np.unique(G_test.to_numpy())[:,None])
+        rahman_censorship_individual = metrics.rahman_censorship_individual_fairness(X_test.to_numpy(),np.exp(test_risk_scores),Y_test["event_time"].to_numpy(),Y_test["event_indicator"].to_numpy())
+        rahman_censorship_group = metrics.rahman_censorship_group_fairness(X_test.to_numpy(),np.exp(test_risk_scores),G_test.to_numpy()==np.unique(G_test.to_numpy())[:,None],Y_test["event_time"].to_numpy(),Y_test["event_indicator"].to_numpy())
+        equal_opportunity = metrics.equal_opportunity(X_test.to_numpy(),G_test.to_numpy(),Y_test["event_time"].to_numpy(),np.exp(test_risk_scores),2)
+        adversarial_censorship = metrics.adversarial_censorship_fairness(X_train.to_numpy(),X_test.to_numpy(),Y_train["event_indicator"],Y_test["event_indicator"],np.exp(train_risk_scores),np.exp(test_risk_scores))
 
         # Reporting out
         print(f"Concordance Index Censored: {concordance_index_censored}")
         print(f"Concordance Index IPCW: {concordance_index_ipcw}")
-        print(f"Brier Score: {brier_score}")
+        # print(f"Brier Score: {brier_score}")
         print(f"Integrated Brier Score: {integrated_brier_score}")
-        print(f"Cumulative Dynamic AUC: {cumulative_dynamic_auc}")
+        print(f"Cumulative Dynamic AUC: {cumulative_dynamic_auc[-1]}")
         print(f"Keya Individual: {keya_individual_total, keya_individual_max}")
         print(f"Keya Group: {keya_group}")
         print(f"Keya Intersectional: {keya_intersectional}")
+        print(f"Rahman Individual: {rahman_censorship_individual}")
+        print(f"Rahman Group: {rahman_censorship_group}")
+        print(f"Equal Opportunity: {equal_opportunity}")
+        print(f"Adversarial Censorship: {adversarial_censorship}")
         f.write(f"Concordance Index Censored: {concordance_index_censored}\n")
         f.write(f"Concordance Index IPCW: {concordance_index_ipcw}\n")
         f.write(f"Brier Score: {brier_score}\n")
@@ -118,6 +126,11 @@ def main():
         f.write(f"Keya Individual: {keya_individual_total, keya_individual_max}\n")
         f.write(f"Keya Group: {keya_group}\n")
         f.write(f"Keya Intersectional: {keya_intersectional}\n")
+        f.write(f"Rahman Individual: {rahman_censorship_individual}\n")
+        f.write(f"Rahman Group: {rahman_censorship_group}\n")
+        f.write(f"Equal Opportunity: {equal_opportunity}\n")
+        f.write(f"Adversarial Censorship: {adversarial_censorship}\n")
+
 
 if __name__ == "__main__":
     start_time = time.perf_counter()
