@@ -3,6 +3,7 @@ from typing import Iterable
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
+from sklearn.metrics.pairwise import cosine_distances
 
 def adversarial_censorship_fairness(X_train: Iterable[Iterable[float]], X_test: Iterable[Iterable[float]], censored_train: Iterable[int], censored_test: Iterable[int], t_hat_train: Iterable[float], t_hat_test: Iterable[float]):
     '''
@@ -91,7 +92,7 @@ def equal_opportunity(X: Iterable[Iterable[float]], g: Iterable[int], t: Iterabl
 
     return eo_probs
 
-def keya_individual_fairness(X: Iterable[Iterable[float]], individual_risk: Iterable[float]):
+def keya_individual_fairness(X: Iterable[Iterable[float]], estimate: Iterable[float]):
     '''
     Computes individual fairness as proposed by Keya et al. 2021. I.e., the sum of positive difference between risk space and individual space. The distance in individual space is the Euclidean distance.
 
@@ -101,8 +102,8 @@ def keya_individual_fairness(X: Iterable[Iterable[float]], individual_risk: Iter
         X: array-like, shape = (n_samples, n_features)
             Data matrix
 
-        risk: array-like, shape = (n_samples,)
-            Estimated individual risk of experiencing an event
+        estimate: array-like, shape = (n_samples,)
+            Estimate for each individual (can be exponentiated base risk, survival probability at time t, etc.)
 
     Returns:
         total: float
@@ -110,58 +111,55 @@ def keya_individual_fairness(X: Iterable[Iterable[float]], individual_risk: Iter
         max_deviation float:
             The max deviation from individual fairness
     '''
-    individual_risk = np.exp(individual_risk)
     total_deviation = 0
     max_deviation = 0
     for i in range(X.shape[0]):
-        for j in range(X.shape[0]):
-            deviation = max(0,np.abs(individual_risk[i]-individual_risk[j])-np.linalg.norm(X[i]-X[j],ord=2))
+        for j in range(i+1):
+            deviation = max(0,np.abs(estimate[i]-estimate[j])-np.linalg.norm(X[i]-X[j],ord=2))
             total_deviation+=deviation
             max_deviation = max(max_deviation,deviation)
     return total_deviation, max_deviation
 
-def keya_group_fairness(individual_risk: Iterable[float], groups: Iterable[float]):
+def keya_group_fairness(estimate: Iterable[float], group_membership: Iterable[Iterable[bool]]):
     '''
     Computes group fairness as proposed by Keya et al. 2021. I.e., the max difference in group average risk and overall average risk.
 
     $$\max_{a\in A}|\overline{h}(a)-\E_{x\in \mathcal{X}}[\overline{h}(x)]|$$ where $\overline{h}$ is the average hazard.
 
     Args:
-        individual_risk: array-like, shape = (n_samples,)
-            Estimated individual risk of experiencing an event
+        estimate: array-like, shape = (n_samples,)
+            Estimate for each individual (can be exponentiated base risk, survival probability at time t, etc.)
 
-        groups: array-like, shape = (n_samples,)
-            List of group membership for each individual
+        group_membership: array-like, shape = (n_groups, n_samples)
+            List of demographic group memberships (`S[i][j]` is `True` when individual `j` is in group `i`)
 
     Returns:
         float: the computed group fairness.
     '''
-    individual_risk = np.exp(individual_risk)
-    avg_risk = np.mean(individual_risk)
-    group_avg_risks = [np.mean(individual_risk[groups==group]) for group in np.unique(groups)]
-    statistic = np.max(np.abs(group_avg_risks-avg_risk))
+    avg_estimate = np.mean(estimate)
+    group_avg_estimates = [np.mean(estimate[group_membership[i]]) for i in range(group_membership.shape[0])]
+    statistic = np.max(np.abs(group_avg_estimates-avg_estimate))
     return statistic
 
-def keya_intersectional_fairness(S: Iterable[Iterable[bool]], individual_risk: Iterable[float]):
+def keya_intersectional_fairness(estimate: Iterable[float], group_membership: Iterable[Iterable[bool]]):
     '''
     Computes intersectional fairness as proposed by Keya et al. 2021. I.e., the max difference (in log space) between any two groups.
 
     $$\max_{a,b\in A}|\overline{h}(a)-\overline{h}(b)|$$ where $\overline{h}$ is the average hazard.
 
     Args:
-        S: array-like, shape = (n_groups, n_samples)
-            List of demographic group memberships
+        estimate: array-like, shape = (n_samples,)
+            Estimate for each individual (can be exponentiated base risk, survival probability at time t, etc.)
 
-        individual_risk: array-like, shape = (n_samples,)
-            Estimated individual risk of experiencing an event
+        group_membership: array-like, shape = (n_groups, n_samples)
+            List of demographic group memberships (`S[i][j]` is `True` when individual `j` is in group `i`)
 
     Returns:
         float: the computed group fairness.
     '''
-    individual_risk = np.exp(individual_risk)
-    group_avg_risks = [np.mean(individual_risk[S[i]]) for i in range(S.shape[0])]
+    group_avg_estimates = [np.mean(estimate[group_membership[i]]) for i in range(group_membership.shape[0])]
     max_diff = 0.
-    for i in range(S.shape[0]):
-        for j in range(i+1,S.shape[0]):
-            max_diff = max(max_diff,np.abs(np.log(group_avg_risks[i])-np.log(group_avg_risks[j])))
+    for i in range(group_membership.shape[0]):
+        for j in range(i+1,group_membership.shape[0]):
+            max_diff = max(max_diff,np.abs(np.log(group_avg_estimates[i])-np.log(group_avg_estimates[j])))
     return max_diff

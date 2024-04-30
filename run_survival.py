@@ -98,7 +98,7 @@ def main():
 
         # Fairness metrics
         keya_individual_total, keya_individual_max = metrics.keya_individual_fairness(np.array(X_test),test_risk_scores)
-        keya_group = metrics.keya_group_fairness(test_risk_scores,G_test.to_numpy())
+        keya_group = metrics.keya_group_fairness(np.exp(test_risk_scores),G_test.to_numpy()==np.unique(G_test.to_numpy())[:,None])
 
         # Reporting out
         print(f"Concordance Index Censored: {concordance_index_censored}")

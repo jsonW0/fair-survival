@@ -27,6 +27,7 @@ def load_dataset(dataset_name: str) -> pd.DataFrame:
     '''
     dataset = None
     # Load built-in dataset
+    # make sure false = censored for event_indicator
     if dataset_name=="flchain":
         dataset = pd.concat((load_flchain()[0],pd.DataFrame(load_flchain()[1])),axis=1)
         dataset.rename(columns={'death': 'event_indicator', 'futime': 'event_time'}, inplace=True)
@@ -35,6 +36,8 @@ def load_dataset(dataset_name: str) -> pd.DataFrame:
         dataset = pd.concat((load_whas500()[0],pd.DataFrame(load_whas500()[1])),axis=1)
         dataset.rename(columns={'fstat': 'event_indicator', 'lenfol': 'event_time'}, inplace=True)
         dataset["demographic_group"] = dataset["gender"]
+    elif dataset_name=="":
+        pass
     # Load user-specified dataset
     else:
         try:
