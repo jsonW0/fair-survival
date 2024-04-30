@@ -32,7 +32,7 @@ def load_dataset(dataset_name: str) -> pd.DataFrame:
     if dataset_name=="flchain":
         dataset = pd.concat((load_flchain()[0],pd.DataFrame(load_flchain()[1])),axis=1)
         dataset.rename(columns={'death': 'event_indicator', 'futime': 'event_time'}, inplace=True)
-        dataset["death"] = [dataset["death"] == 'F']
+        dataset["event_indicator"] = [dataset["event_indicator"] == 'death']
         dataset["demographic_group"] = [dataset["sex"] == 'F']
     elif dataset_name=="whas500":
         dataset = pd.concat((load_whas500()[0],pd.DataFrame(load_whas500()[1])),axis=1)
@@ -41,7 +41,7 @@ def load_dataset(dataset_name: str) -> pd.DataFrame:
     elif dataset_name=="aids":
         dataset = pd.concat((load_aids()[0],pd.DataFrame(load_aids()[1])),axis=1)
         dataset.rename(columns={'censor': 'event_indicator', 'time': 'event_time'}, inplace=True)
-        dataset["demographic_group"] = dataset["sex"]
+        dataset["demographic_group"] = [dataset["sex"] == 2]
     elif dataset_name=="breast_cancer":
         dataset = pd.concat((load_breast_cancer()[0],pd.DataFrame(load_breast_cancer()[1])),axis=1)
         dataset.rename(columns={'e.tdm': 'event_indicator', 't.tdm': 'event_time'}, inplace=True)
@@ -53,6 +53,7 @@ def load_dataset(dataset_name: str) -> pd.DataFrame:
     elif dataset_name=="veterans_lung_cancer":
         dataset = pd.concat((load_veterans_lung_cancer()[0],pd.DataFrame(load_veterans_lung_cancer()[1])),axis=1)
         dataset.rename(columns={'Status': 'event_indicator', 'Survival_in_days': 'event_time'}, inplace=True)
+        dataset["event_indicator"] = [dataset["event_indicator"] == 'dead']
         dataset["demographic_group"] = dataset["Age_in_years"]
         
     # Load user-specified dataset
