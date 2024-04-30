@@ -45,6 +45,8 @@ def main():
     with open(f"results/{args.experiment_name}/{args.experiment_name}_args.txt","w") as f:
         f.write(str(args))
 
+    #################################################################################
+
     # Load survival 
     if args.dataset=="synthetic":
         dataset = generate_synthetic_dataset(N=args.N,G=args.G,D=args.D,repr=np.array(args.repr).reshape(args.G),censorship_repr=np.array(args.censorship_repr).reshape(args.G),mean=np.array(args.mean).reshape(args.G,args.D),std=np.array(args.std).reshape(args.G,args.D,args.D),scale=np.array(args.scale).reshape(args.G),shape=np.array(args.shape).reshape(args.G),censorship_mean=np.array(args.censorship_mean).reshape(args.G,args.D),censorship_temp=np.array(args.censorship_temp).reshape(args.G),censorship_times=np.array(args.censorship_times).reshape(args.G,2),seed=args.seed)
@@ -53,17 +55,26 @@ def main():
         dataset = load_dataset(args.dataset)
     X_train, X_test, Y_train, Y_test, G_train, G_test = preprocess_dataset(dataset)
 
+    #################################################################################
+
     # Train an estimator
     if args.model == "coxph":
         estimator = CoxPHSurvivalAnalysis(alpha=0.1).fit(X_train, Y_train.to_records(index=False))
     else:
         raise NotImplementedError(f"{args.model} has not been implemented.")
 
+    #################################################################################
+
     # Evaluate the model
     surv_funcs = estimator.predict_survival_function(X_test)
     plt.figure()
+    # count = 0
     for fn in surv_funcs:
-        plt.step(fn.x, fn(fn.x), where="post", alpha=0.05, c="tab:blue")
+        # if count==20:
+        plt.step(fn.x, fn(fn.x), where="post", alpha=0.5, c="tab:blue")
+        # plt.axvline(fn.x[np.argmax(fn(fn.x)<=0.5)],c="k")
+            # break
+        # count+=1
     plt.ylim(0, 1)
     plt.xlabel("Time")
     plt.ylabel("Survival Probability")
@@ -71,8 +82,11 @@ def main():
     plt.grid()
     plt.savefig(f"results/{args.experiment_name}/{args.experiment_name}_survival_function.png")
 
-    train_risk_scores = estimator.predict(X_train)
-    test_risk_scores = estimator.predict(X_test)
+    train_risk_scores = np.exp(estimator.predict(X_train))
+    test_risk_scores = np.exp(estimator.predict(X_test))
+
+    train_t_hat = np.array([fn.x[np.argmax(fn(fn.x)<=0.5)] for fn in estimator.predict_survival_function(X_train)])
+    test_t_hat = np.array([fn.x[np.argmax(fn(fn.x)<=0.5)] for fn in estimator.predict_survival_function(X_test)])
 
     with open(f"results/{args.experiment_name}/{args.experiment_name}_metrics.txt","w") as f:
         # Accuracy Metrics
@@ -97,13 +111,13 @@ def main():
         plt.savefig(f"results/{args.experiment_name}/{args.experiment_name}_cumulative_dynamic_auc.png")
 
         # Fairness metrics
-        keya_individual_total, keya_individual_max = metrics.keya_individual_fairness(X_test.to_numpy(),np.exp(test_risk_scores))
-        keya_group = metrics.keya_group_fairness(np.exp(test_risk_scores),G_test.to_numpy()==np.unique(G_test.to_numpy())[:,None])
-        keya_intersectional = metrics.keya_intersectional_fairness(np.exp(test_risk_scores),G_test.to_numpy()==np.unique(G_test.to_numpy())[:,None])
-        rahman_censorship_individual = metrics.rahman_censorship_individual_fairness(X_test.to_numpy(),np.exp(test_risk_scores),Y_test["event_time"].to_numpy(),Y_test["event_indicator"].to_numpy())
-        rahman_censorship_group = metrics.rahman_censorship_group_fairness(X_test.to_numpy(),np.exp(test_risk_scores),G_test.to_numpy()==np.unique(G_test.to_numpy())[:,None],Y_test["event_time"].to_numpy(),Y_test["event_indicator"].to_numpy())
-        equal_opportunity = metrics.equal_opportunity(X_test.to_numpy(),G_test.to_numpy(),Y_test["event_time"].to_numpy(),np.exp(test_risk_scores),2)
-        adversarial_censorship = metrics.adversarial_censorship_fairness(X_train.to_numpy(),X_test.to_numpy(),Y_train["event_indicator"],Y_test["event_indicator"],np.exp(train_risk_scores),np.exp(test_risk_scores))
+        keya_individual_total, keya_individual_max = metrics.keya_individual_fairness(X_test.to_numpy(),test_risk_scores)
+        keya_group = metrics.keya_group_fairness(test_risk_scores,G_test.to_numpy()==np.unique(G_test.to_numpy())[:,None])
+        keya_intersectional = metrics.keya_intersectional_fairness(test_risk_scores,G_test.to_numpy()==np.unique(G_test.to_numpy())[:,None])
+        rahman_censorship_individual = metrics.rahman_censorship_individual_fairness(X_test.to_numpy(),test_risk_scores,Y_test["event_time"].to_numpy(),Y_test["event_indicator"].to_numpy())
+        rahman_censorship_group = metrics.rahman_censorship_group_fairness(X_test.to_numpy(),test_risk_scores,G_test.to_numpy()==np.unique(G_test.to_numpy())[:,None],Y_test["event_time"].to_numpy(),Y_test["event_indicator"].to_numpy())
+        equal_opportunity = metrics.equal_opportunity(X_test.to_numpy(),G_test.to_numpy(),Y_test["event_time"].to_numpy(),test_t_hat,2)
+        adversarial_censorship = metrics.adversarial_censorship_fairness(X_train.to_numpy(),X_test.to_numpy(),Y_train["event_indicator"].to_numpy(),Y_test["event_indicator"].to_numpy(),train_risk_scores,test_risk_scores)
 
         # Reporting out
         print(f"Concordance Index Censored: {concordance_index_censored}")
@@ -130,7 +144,6 @@ def main():
         f.write(f"Rahman Group: {rahman_censorship_group}\n")
         f.write(f"Equal Opportunity: {equal_opportunity}\n")
         f.write(f"Adversarial Censorship: {adversarial_censorship}\n")
-
 
 if __name__ == "__main__":
     start_time = time.perf_counter()

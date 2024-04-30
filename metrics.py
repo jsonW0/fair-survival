@@ -44,17 +44,20 @@ def adversarial_censorship_fairness(X_train: Iterable[Iterable[float]], X_test: 
     predictions2 = model2.predict(X_test_with_t_hat)
     accuracy2 = accuracy_score(censored_test, predictions2)
 
-    return accuracy1, accuracy2
+    return accuracy2-accuracy1
 
-def equal_opportunity(X: Iterable[Iterable[float]], g: Iterable[int], t: Iterable[int], t_hat: Iterable[float], num_bins: int):
+def equal_opportunity(X: Iterable[Iterable[float]], groups: Iterable[int], t: Iterable[int], t_hat: Iterable[float], num_bins: int):
     '''
     Computes the equal opportunity probabilities of the discretized bins of the survival times 
+    
+    Pr[t_hat=k|i=A,t=k]=Pr[t_hat=k|i=B,t=k]=Pr[t_hat=k|i=C,t=k], then holds for all k
+    Compute the max of the max pairwise group deviations
     
     Args: 
         X: array-like, shape = (n_samples, n_features)
             Data matrix
         
-        g: array-like, shape = (n_samples)
+        groups: array-like, shape = (n_samples)
             Binary vector representing the sensitive attributes of each data point
 
         t: array-like, shape = (n_samples)
@@ -67,30 +70,19 @@ def equal_opportunity(X: Iterable[Iterable[float]], g: Iterable[int], t: Iterabl
             Number of bins to discretize the survival time range into
         
     Returns:
-        eo_probs: array-like, shape = (num_bins, 2)
-            Equal opportunity probabilities for each survival time bin, 2 for each bin (1 for each value of the sensitive attribute)
+        eo_probs: array-like, shape = (num_bins, n_features)
+            Equal opportunity probabilities for each survival time bin, num_features for each bin (1 for each value of the sensitive attribute)
     '''
-    X = np.array(X)
-    g = np.array(g)
-    t = np.array(t)
-    t_hat = np.array(t_hat)
-
     combined = np.concatenate((t, t_hat))
     bins = np.linspace(np.min(combined), np.max(combined), num=num_bins+1)
     digitized_t = np.digitize(t, bins) - 1  # bin indices from 0 to num_bins-1 for true times
     digitized_t_hat = np.digitize(t_hat, bins) - 1  # bin indices for predicted times
 
-    eo_probs = np.zeros((num_bins, 2))
-
+    eo_probs = np.zeros((num_bins, len(np.unique(groups))))
     for i in range(num_bins):
-        for j in range(2):
-            mask = (digitized_t == i) & (g == j)
-            if np.sum(mask) > 0:
-                correct_predictions = np.sum(digitized_t[mask] == digitized_t_hat[mask])
-                total_predictions = np.sum(mask)
-                eo_probs[i, j] = correct_predictions / total_predictions if total_predictions > 0 else 0
-
-    return eo_probs
+        for j,group in enumerate(np.unique(groups)):
+            eo_probs[i,j] = np.mean(digitized_t[(digitized_t==i) & (groups==group)]==digitized_t_hat[(digitized_t==i) & (groups==group)])
+    return np.max([np.max(row) - np.min(row) for row in eo_probs])
 
 def keya_individual_fairness(X: Iterable[Iterable[float]], estimate: Iterable[float], alpha: Optional[float] = 1., distance: Optional[Callable] = lambda x,y: np.linalg.norm(x-y,ord=2)):
     '''
