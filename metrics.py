@@ -1,5 +1,5 @@
 from sksurv.metrics import concordance_index_censored, concordance_index_ipcw, brier_score, integrated_brier_score, cumulative_dynamic_auc
-from typing import Iterable
+from typing import Iterable, Optional, Callable
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
@@ -92,9 +92,9 @@ def equal_opportunity(X: Iterable[Iterable[float]], g: Iterable[int], t: Iterabl
 
     return eo_probs
 
-def keya_individual_fairness(X: Iterable[Iterable[float]], estimate: Iterable[float]):
+def keya_individual_fairness(X: Iterable[Iterable[float]], estimate: Iterable[float], alpha: Optional[float], distance: Optional[Callable] = lambda x,y: np.linalg.norm(x-y,ord=2)):
     '''
-    Computes individual fairness as proposed by Keya et al. 2021. I.e., the sum of positive difference between risk space and individual space. The distance in individual space is the Euclidean distance.
+    Computes individual fairness as proposed by Keya et al. 2021. I.e., the sum of positive difference between estimate space and attribute space.
 
     $$\sum_{i,j}\max(0,|h_i-h_j|-||x_i-x_j||_2)$$
 
@@ -104,9 +104,15 @@ def keya_individual_fairness(X: Iterable[Iterable[float]], estimate: Iterable[fl
 
         estimate: array-like, shape = (n_samples,)
             Estimate for each individual (can be exponentiated base risk, survival probability at time t, etc.)
+        
+        alpha: float
+            Scaling factor to compare distance in estimate space and feature space. Default: 1.0
+        
+        distance: Callable
+            Specify the distance in attribute space. Default: Euclidean distance
 
     Returns:
-        total: float
+        total_deviation: float
             The total deviation from individual fairness (summed, as in the original paper)
         max_deviation float:
             The max deviation from individual fairness
@@ -115,14 +121,14 @@ def keya_individual_fairness(X: Iterable[Iterable[float]], estimate: Iterable[fl
     max_deviation = 0
     for i in range(X.shape[0]):
         for j in range(i+1):
-            deviation = max(0,np.abs(estimate[i]-estimate[j])-np.linalg.norm(X[i]-X[j],ord=2))
+            deviation = max(0,np.abs(estimate[i]-estimate[j])-alpha*distance(X[i],X[j]))
             total_deviation+=deviation
             max_deviation = max(max_deviation,deviation)
     return total_deviation, max_deviation
 
 def keya_group_fairness(estimate: Iterable[float], group_membership: Iterable[Iterable[bool]]):
     '''
-    Computes group fairness as proposed by Keya et al. 2021. I.e., the max difference in group average risk and overall average risk.
+    Computes group fairness as proposed by Keya et al. 2021. I.e., the max difference in group estimate and overall estimate.
 
     $$\max_{a\in A}|\overline{h}(a)-\E_{x\in \mathcal{X}}[\overline{h}(x)]|$$ where $\overline{h}$ is the average hazard.
 
@@ -163,3 +169,86 @@ def keya_intersectional_fairness(estimate: Iterable[float], group_membership: It
         for j in range(i+1,group_membership.shape[0]):
             max_diff = max(max_diff,np.abs(np.log(group_avg_estimates[i])-np.log(group_avg_estimates[j])))
     return max_diff
+
+def rahman_censorship_individual_fairness(X: Iterable[Iterable[float]], estimate: Iterable[float], event_time: Iterable[float], event_indicator: Iterable[float], alpha: Optional[float] = 1., distance: Optional[Callable] = lambda x,y: np.linalg.norm(x-y,ord=2)):
+    '''
+    Computes censorship-based individual fairness as proposed by Rahman et al. 2023.
+
+    Args:
+        X: array-like, shape = (n_samples, n_features)
+            Data matrix
+
+        estimate: array-like, shape = (n_samples,)
+            Estimate for each individual (can be exponentiated base risk, survival probability at time t, etc.)
+        
+        event_time: array-like, shape = (n_samples,)
+            Observed event_time for each individual
+
+        event_indicator: array-like, shape = (n_samples,)
+            List of booleans that are True when the individual's event was uncensored and False when the individual's event was censored
+
+        alpha: float
+            Scaling factor to compare distance in estimate space and feature space. Default: 1.0
+        
+        distance: Callable
+            Specify the distance in attribute space. Default: Euclidean distance
+
+    Returns:
+        total_deviation: float
+            The total deviation from individual fairness
+        max_deviation float:
+            The max deviation from individual fairness
+    '''
+    total_deviation = 0
+    max_deviation = 0
+    for i in np.argwhere(~event_indicator): #censored
+        for j in np.argwhere(event_indicator): # uncensored
+            if event_time[i]<=event_time[j]:
+                deviation = max(0,np.abs(estimate[i]-estimate[j])-alpha*distance(X[i],X[j]))
+                total_deviation+=deviation
+                max_deviation = max(max_deviation,deviation)
+    return total_deviation/(len(np.argwhere(~event_indicator))*np.argwhere(event_indicator)), max_deviation
+
+
+def rahman_censorship_group_fairness(X: Iterable[Iterable[float]], estimate: Iterable[float], group_membership: Iterable[Iterable[bool]], event_time: Iterable[float], event_indicator: Iterable[float], alpha: Optional[float] = 1., distance: Optional[Callable] = lambda x,y: np.linalg.norm(x-y,ord=2)):
+    '''
+    Computes censorship-based individual fairness as proposed by Rahman et al. 2023.
+
+    Args:
+        X: array-like, shape = (n_samples, n_features)
+            Data matrix
+
+        estimate: array-like, shape = (n_samples,)
+            Estimate for each individual (can be exponentiated base risk, survival probability at time t, etc.)
+
+        group_membership: array-like, shape = (n_groups, n_samples)
+            List of demographic group memberships (`S[i][j]` is `True` when individual `j` is in group `i`)
+        
+        event_time: array-like, shape = (n_samples,)
+            Observed event_time for each individual
+
+        event_indicator: array-like, shape = (n_samples,)
+            List of booleans that are True when the individual's event was uncensored and False when the individual's event was censored
+
+        alpha: float
+            Scaling factor to compare distance in estimate space and feature space. Default: 1.0
+        
+        distance: Callable
+            Specify the distance in attribute space. Default: Euclidean distance
+
+    Returns:
+        total_deviation: float
+            The total deviation from individual fairness
+        max_deviation float:
+            The max deviation from individual fairness
+    '''
+    total_deviation = 0
+    max_deviation = 0
+    for group in np.unique(group_membership):
+        for i in np.argwhere((~event_indicator)[group_membership==group]): #censored
+            for j in np.argwhere(event_indicator[group_membership==group]): # uncensored
+                if event_time[i]<=event_time[j]:
+                    deviation = max(0,np.abs(estimate[i]-estimate[j])-alpha*distance(X[i],X[j]))
+                    total_deviation+=deviation
+                    max_deviation = max(max_deviation,deviation)
+    return total_deviation/(len(np.argwhere(~event_indicator))*np.argwhere(event_indicator)), max_deviation

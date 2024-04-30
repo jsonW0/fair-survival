@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from sksurv.datasets import load_flchain, load_whas500
+from sksurv.datasets import load_flchain, load_whas500, load_aids, load_breast_cancer
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.impute import SimpleImputer
@@ -36,8 +36,14 @@ def load_dataset(dataset_name: str) -> pd.DataFrame:
         dataset = pd.concat((load_whas500()[0],pd.DataFrame(load_whas500()[1])),axis=1)
         dataset.rename(columns={'fstat': 'event_indicator', 'lenfol': 'event_time'}, inplace=True)
         dataset["demographic_group"] = dataset["gender"]
-    elif dataset_name=="":
-        pass
+    elif dataset_name=="aids":
+        dataset = pd.concat((load_aids()[0],pd.DataFrame(load_aids()[1])),axis=1)
+        dataset.rename(columns={'censor': 'event_indicator', 'time': 'event_time'}, inplace=True)
+        dataset["demographic_group"] = dataset["sex"]
+    elif dataset_name=="breast_cancer":
+        dataset = pd.concat((load_breast_cancer()[0],pd.DataFrame(load_breast_cancer()[1])),axis=1)
+        dataset.rename(columns={'e.tdm': 'event_indicator', 't.tdm': 'event_time'}, inplace=True)
+        dataset["demographic_group"] = dataset["age"]
     # Load user-specified dataset
     else:
         try:
