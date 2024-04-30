@@ -96,8 +96,9 @@ def main():
         plt.grid()
         plt.savefig(f"results/{args.experiment_name}/{args.experiment_name}_cumulative_dynamic_auc.png")
 
+        # Fairness metrics
         keya_individual_total, keya_individual_max = metrics.keya_individual_fairness(np.array(X_test),test_risk_scores)
-        # metric_blah = metrics.metric_blah(dasjkldfjksladf,fjdsalkfjlskd)
+        keya_group = metrics.keya_group_fairness(test_risk_scores,G_test.to_numpy())
 
         # Reporting out
         print(f"Concordance Index Censored: {concordance_index_censored}")
@@ -106,12 +107,14 @@ def main():
         print(f"Integrated Brier Score: {integrated_brier_score}")
         print(f"Cumulative Dynamic AUC: {cumulative_dynamic_auc}")
         print(f"Keya Individual: {keya_individual_total, keya_individual_max}")
+        print(f"Keya Group: {keya_group}")
         f.write(f"Concordance Index Censored: {concordance_index_censored}\n")
         f.write(f"Concordance Index IPCW: {concordance_index_ipcw}\n")
         f.write(f"Brier Score: {brier_score}\n")
         f.write(f"Integrated Brier Score: {integrated_brier_score}\n")
         f.write(f"Cumulative Dynamic AUC: {cumulative_dynamic_auc}\n")
         f.write(f"Keya Individual: {keya_individual_total, keya_individual_max}\n")
+        f.write(f"Keya Group: {keya_group}\n")
 
 if __name__ == "__main__":
     start_time = time.perf_counter()

@@ -120,25 +120,25 @@ def keya_individual_fairness(X: Iterable[Iterable[float]], individual_risk: Iter
             max_deviation = max(max_deviation,deviation)
     return total_deviation, max_deviation
 
-def keya_group_fairness(S: Iterable[Iterable[bool]], individual_risk: Iterable[float]):
+def keya_group_fairness(individual_risk: Iterable[float], groups: Iterable[float]):
     '''
     Computes group fairness as proposed by Keya et al. 2021. I.e., the max difference in group average risk and overall average risk.
 
     $$\max_{a\in A}|\overline{h}(a)-\E_{x\in \mathcal{X}}[\overline{h}(x)]|$$ where $\overline{h}$ is the average hazard.
 
     Args:
-        S: array-like, shape = (n_groups, n_samples)
-            List of demographic group memberships (`S[i][j]` is `True` when individual `j` is in group `i`)
-
         individual_risk: array-like, shape = (n_samples,)
             Estimated individual risk of experiencing an event
+
+        groups: array-like, shape = (n_samples,)
+            List of group membership for each individual
 
     Returns:
         float: the computed group fairness.
     '''
     individual_risk = np.exp(individual_risk)
     avg_risk = np.mean(individual_risk)
-    group_avg_risks = [np.mean(individual_risk[S[i]]) for i in range(S.shape[0])]
+    group_avg_risks = [np.mean(individual_risk[groups==group]) for group in np.unique(groups)]
     statistic = np.max(np.abs(group_avg_risks-avg_risk))
     return statistic
 
