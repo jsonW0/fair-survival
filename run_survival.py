@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import argparse
+import pickle
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -59,17 +60,22 @@ def main():
     os.makedirs(f"results/{args.experiment_name}/",exist_ok=True)
     with open(f"results/{args.experiment_name}/{args.experiment_name}_args.txt","w") as f:
         f.write(str(args))
+    with open(f"results/{args.experiment_name}/{args.experiment_name}_args.pickle","wb") as f:
+        pickle.dump(args,f)
 
     results = {
         "concordance_index_censored": [],
         "concordance_index_ipcw": [],
         "integrated_brier_score": [],
         "cumulative_dynamic_auc": [],
-        "keya_individual": [], 
+        "keya_individual_total": [], 
+        "keya_individual_max": [], 
         "keya_group": [], 
         "keya_intersectional": [],
-        "rahman_censorship_individual": [],
-        "rahman_censorship_group": [],
+        "rahman_censorship_individual_total": [],
+        "rahman_censorship_individual_max": [],
+        "rahman_censorship_group_total": [],
+        "rahman_censorship_group_max": [],
         "equal_opportunity": [],
         "adversarial_censorship": [],
     }
@@ -154,11 +160,11 @@ def main():
             plt.savefig(f"results/{args.experiment_name}/{args.experiment_name}_cumulative_dynamic_auc_{trial}.png")
 
             # Fairness metrics
-            keya_individual = metrics.keya_individual_fairness(X_test.to_numpy(),test_risk_scores)
+            keya_individual_total, keya_individual_max = metrics.keya_individual_fairness(X_test.to_numpy(),test_risk_scores)
             keya_group = metrics.keya_group_fairness(test_risk_scores,G_test.to_numpy()==np.unique(G_test.to_numpy())[:,None])
             keya_intersectional = metrics.keya_intersectional_fairness(test_risk_scores,G_test.to_numpy()==np.unique(G_test.to_numpy())[:,None])
-            rahman_censorship_individual = metrics.rahman_censorship_individual_fairness(X_test.to_numpy(),test_risk_scores,Y_test["event_time"].to_numpy(),Y_test["event_indicator"].to_numpy())
-            rahman_censorship_group = metrics.rahman_censorship_group_fairness(X_test.to_numpy(),test_risk_scores,G_test.to_numpy()==np.unique(G_test.to_numpy())[:,None],Y_test["event_time"].to_numpy(),Y_test["event_indicator"].to_numpy())
+            rahman_censorship_individual_total, rahman_censorship_individual_max = metrics.rahman_censorship_individual_fairness(X_test.to_numpy(),test_risk_scores,Y_test["event_time"].to_numpy(),Y_test["event_indicator"].to_numpy())
+            rahman_censorship_group_total, rahman_censorship_group_max = metrics.rahman_censorship_group_fairness(X_test.to_numpy(),test_risk_scores,G_test.to_numpy()==np.unique(G_test.to_numpy())[:,None],Y_test["event_time"].to_numpy(),Y_test["event_indicator"].to_numpy())
             equal_opportunity = metrics.equal_opportunity(X_test.to_numpy(),G_test.to_numpy(),test_true_times if test_true_times is not None else Y_test["event_time"].to_numpy(),test_half_life,5)
             adversarial_censorship = metrics.adversarial_censorship_fairness(X_train.to_numpy(),X_test.to_numpy(),Y_train["event_indicator"].to_numpy(),Y_test["event_indicator"].to_numpy(),train_risk_scores,test_risk_scores)
 
@@ -168,11 +174,11 @@ def main():
             # print(f"Brier Score: {brier_score}")
             print(f"Integrated Brier Score: {integrated_brier_score}")
             print(f"Cumulative Dynamic AUC: {cumulative_dynamic_auc[-1]}")
-            print(f"Keya Individual: {keya_individual}")
+            print(f"Keya Individual: {keya_individual_total, keya_individual_max}")
             print(f"Keya Group: {keya_group}")
             print(f"Keya Intersectional: {keya_intersectional}")
-            print(f"Rahman Individual: {rahman_censorship_individual}")
-            print(f"Rahman Group: {rahman_censorship_group}")
+            print(f"Rahman Individual: {rahman_censorship_individual_total, rahman_censorship_individual_max}")
+            print(f"Rahman Group: {rahman_censorship_group_total, rahman_censorship_group_max}")
             print(f"Equal Opportunity: {equal_opportunity}")
             print(f"Adversarial Censorship: {adversarial_censorship}")
             f.write(f"Concordance Index Censored: {concordance_index_censored}\n")
@@ -180,11 +186,14 @@ def main():
             f.write(f"Brier Score: {brier_score}\n")
             f.write(f"Integrated Brier Score: {integrated_brier_score}\n")
             f.write(f"Cumulative Dynamic AUC: {cumulative_dynamic_auc}\n")
-            f.write(f"Keya Individual: {keya_individual}\n")
+            f.write(f"Keya Individual Total: {keya_individual_total}\n")
+            f.write(f"Keya Individual Max: {keya_individual_max}\n")
             f.write(f"Keya Group: {keya_group}\n")
             f.write(f"Keya Intersectional: {keya_intersectional}\n")
-            f.write(f"Rahman Individual: {rahman_censorship_individual}\n")
-            f.write(f"Rahman Group: {rahman_censorship_group}\n")
+            f.write(f"Rahman Individual Total: {rahman_censorship_individual_total}\n")
+            f.write(f"Rahman Individual Max: {rahman_censorship_individual_max}\n")
+            f.write(f"Rahman Group Total: {rahman_censorship_group_total}\n")
+            f.write(f"Rahman Group Max: {rahman_censorship_group_max}\n")
             f.write(f"Equal Opportunity: {equal_opportunity}\n")
             f.write(f"Adversarial Censorship: {adversarial_censorship}\n")
 
@@ -194,11 +203,14 @@ def main():
             # results["brier_score"].append(brier_score)
             results["integrated_brier_score"].append(integrated_brier_score)
             results["cumulative_dynamic_auc"].append(cumulative_dynamic_auc[-1])
-            results["keya_individual"].append(keya_individual)
+            results["keya_individual_total"].append(keya_individual_total)
+            results["keya_individual_max"].append(keya_individual_max)
             results["keya_group"].append(keya_group)
             results["keya_intersectional"].append(keya_intersectional)
-            results["rahman_censorship_individual"].append(rahman_censorship_individual)
-            results["rahman_censorship_group"].append(rahman_censorship_group)
+            results["rahman_censorship_individual_total"].append(rahman_censorship_individual_total)
+            results["rahman_censorship_individual_max"].append(rahman_censorship_individual_max)
+            results["rahman_censorship_group_total"].append(rahman_censorship_group_total)
+            results["rahman_censorship_group_max"].append(rahman_censorship_group_max)
             results["equal_opportunity"].append(equal_opportunity)
             results["adversarial_censorship"].append(adversarial_censorship[0])
 
@@ -214,6 +226,8 @@ def main():
         for key,value in results.items():
             print(f"{key}: {value}")
             f.write(f"{key}: {value}\n")
+    with open(f"results/{args.experiment_name}/{args.experiment_name}_results.pickle","wb") as f:
+        pickle.dump({key:value for key,value in results.items() if key.endswith("__mean") or key.endswith("__std")},f)
 
 if __name__ == "__main__":
     start_time = time.perf_counter()
