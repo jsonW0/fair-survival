@@ -54,9 +54,9 @@ def main():
     # Load survival 
     if args.dataset=="synthetic":
         dataset = generate_synthetic_dataset(N=args.N,G=args.G,D=args.D,repr=np.array(args.repr).reshape(args.G),censorship_repr=np.array(args.censorship_repr).reshape(args.G),mean=np.array(args.mean).reshape(args.G,args.D),std=np.array(args.std).reshape(args.G,args.D,args.D),scale=np.array(args.scale).reshape(args.G),shape=np.array(args.shape).reshape(args.G),censorship_mean=np.array(args.censorship_mean).reshape(args.G,args.D),censorship_temp=np.array(args.censorship_temp).reshape(args.G),censorship_times=np.array(args.censorship_times).reshape(args.G,2),seed=args.seed)
-        dataset.to_csv(f"results/{args.experiment_name}/synthetic.csv")
     else:
         dataset = load_dataset(args.dataset)
+    dataset.to_csv(f"results/{args.experiment_name}/dataset.csv")
     X_train, X_test, Y_train, Y_test, G_train, G_test = preprocess_dataset(dataset)
 
     #################################################################################

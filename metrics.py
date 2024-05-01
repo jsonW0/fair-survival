@@ -44,7 +44,7 @@ def adversarial_censorship_fairness(X_train: Iterable[Iterable[float]], X_test: 
     predictions2 = model2.predict(X_test_with_t_hat)
     accuracy2 = accuracy_score(censored_test, predictions2)
 
-    return accuracy2-accuracy1
+    return accuracy2-accuracy1, accuracy1, accuracy2
 
 def equal_opportunity(X: Iterable[Iterable[float]], groups: Iterable[int], t: Iterable[int], t_hat: Iterable[float], num_bins: int):
     '''
@@ -199,7 +199,7 @@ def rahman_censorship_individual_fairness(X: Iterable[Iterable[float]], estimate
                 deviation = max(0,np.abs(estimate[i]-estimate[j])-alpha*distance(X[i],X[j]))
                 total_deviation+=deviation
                 max_deviation = max(max_deviation,deviation)
-    return total_deviation/(len(np.argwhere(~event_indicator))*len(np.argwhere(event_indicator))), max_deviation
+    return float(total_deviation/(len(np.argwhere(~event_indicator))*len(np.argwhere(event_indicator)))), float(max_deviation)
 
 
 def rahman_censorship_group_fairness(X: Iterable[Iterable[float]], estimate: Iterable[float], group_membership: Iterable[Iterable[bool]], event_time: Iterable[float], event_indicator: Iterable[float], alpha: Optional[float] = 1., distance: Optional[Callable] = lambda x,y: np.linalg.norm(x-y,ord=2)):
