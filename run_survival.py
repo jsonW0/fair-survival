@@ -76,8 +76,14 @@ def main():
         "rahman_censorship_individual_max": [],
         "rahman_censorship_group_total": [],
         "rahman_censorship_group_max": [],
-        "equal_opportunity": [],
-        "adversarial_censorship": [],
+        "average_equal_opportunity": [],
+        "max_equal_opportunity": [],
+        "adversarial_censorship_train": [],
+        "adversarial_censorship_test": [],
+        "adversarial_censorship_train_base": [],
+        "adversarial_censorship_test_base": [],
+        "adversarial_censorship_train_plus": [],
+        "adversarial_censorship_test_plus": [],
     }
     for trial in range(args.num_trials):
         #################################################################################
@@ -124,8 +130,10 @@ def main():
         plt.grid()
         plt.savefig(f"results/{args.experiment_name}/{args.experiment_name}_survival_function_{trial}.png")
 
-        train_risk_scores = np.exp(estimator.predict(X_train))
-        test_risk_scores = np.exp(estimator.predict(X_test))
+        # train_risk_scores = np.exp(estimator.predict(X_train)
+        # test_risk_scores = np.exp(estimator.predict(X_test))
+        train_risk_scores = estimator.predict(X_train)
+        test_risk_scores = estimator.predict(X_test)
 
         train_half_life = np.array([fn.x[np.argmax(fn(fn.x)<=0.5)] for fn in estimator.predict_survival_function(X_train)])
         test_half_life = np.array([fn.x[np.argmax(fn(fn.x)<=0.5)] for fn in estimator.predict_survival_function(X_test)])
@@ -165,7 +173,7 @@ def main():
             keya_intersectional = metrics.keya_intersectional_fairness(test_risk_scores,G_test.to_numpy()==np.unique(G_test.to_numpy())[:,None])
             rahman_censorship_individual_total, rahman_censorship_individual_max = metrics.rahman_censorship_individual_fairness(X_test.to_numpy(),test_risk_scores,Y_test["event_time"].to_numpy(),Y_test["event_indicator"].to_numpy())
             rahman_censorship_group_total, rahman_censorship_group_max = metrics.rahman_censorship_group_fairness(X_test.to_numpy(),test_risk_scores,G_test.to_numpy()==np.unique(G_test.to_numpy())[:,None],Y_test["event_time"].to_numpy(),Y_test["event_indicator"].to_numpy())
-            equal_opportunity = metrics.equal_opportunity(X_test.to_numpy(),G_test.to_numpy(),test_true_times if test_true_times is not None else Y_test["event_time"].to_numpy(),test_half_life,5)
+            average_equal_opportunity, max_equal_opportunity = metrics.equal_opportunity(X_test.to_numpy(),G_test.to_numpy(),test_true_times if test_true_times is not None else Y_test["event_time"].to_numpy(),test_half_life,5)
             adversarial_censorship = metrics.adversarial_censorship_fairness(X_train.to_numpy(),X_test.to_numpy(),Y_train["event_indicator"].to_numpy(),Y_test["event_indicator"].to_numpy(),train_risk_scores,test_risk_scores)
 
             # Reporting out
@@ -179,7 +187,7 @@ def main():
             print(f"Keya Intersectional: {keya_intersectional}")
             print(f"Rahman Individual: {rahman_censorship_individual_total, rahman_censorship_individual_max}")
             print(f"Rahman Group: {rahman_censorship_group_total, rahman_censorship_group_max}")
-            print(f"Equal Opportunity: {equal_opportunity}")
+            print(f"Equal Opportunity: {average_equal_opportunity, max_equal_opportunity}")
             print(f"Adversarial Censorship: {adversarial_censorship}")
             f.write(f"Concordance Index Censored: {concordance_index_censored}\n")
             f.write(f"Concordance Index IPCW: {concordance_index_ipcw}\n")
@@ -194,7 +202,7 @@ def main():
             f.write(f"Rahman Individual Max: {rahman_censorship_individual_max}\n")
             f.write(f"Rahman Group Total: {rahman_censorship_group_total}\n")
             f.write(f"Rahman Group Max: {rahman_censorship_group_max}\n")
-            f.write(f"Equal Opportunity: {equal_opportunity}\n")
+            f.write(f"Equal Opportunity: {average_equal_opportunity, max_equal_opportunity}\n")
             f.write(f"Adversarial Censorship: {adversarial_censorship}\n")
 
             # Aggregating over trials
@@ -211,8 +219,14 @@ def main():
             results["rahman_censorship_individual_max"].append(rahman_censorship_individual_max)
             results["rahman_censorship_group_total"].append(rahman_censorship_group_total)
             results["rahman_censorship_group_max"].append(rahman_censorship_group_max)
-            results["equal_opportunity"].append(equal_opportunity)
-            results["adversarial_censorship"].append(adversarial_censorship[0])
+            results["average_equal_opportunity"].append(average_equal_opportunity)
+            results["max_equal_opportunity"].append(max_equal_opportunity)
+            results["adversarial_censorship_train"].append(adversarial_censorship[0]),
+            results["adversarial_censorship_test"].append(adversarial_censorship[1]),
+            results["adversarial_censorship_train_base"].append(adversarial_censorship[2]),
+            results["adversarial_censorship_test_base"].append(adversarial_censorship[4]),
+            results["adversarial_censorship_train_plus"].append(adversarial_censorship[3]),
+            results["adversarial_censorship_test_plus"].append(adversarial_censorship[5]),
 
     # Aggregate results
     for key in list(results.keys()):

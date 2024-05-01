@@ -27,3 +27,4 @@ with HidePrint():
     walker = pyg.walk(results)
     with open(f"results/results.html","w") as f:
         f.write(walker.to_html())
+    results.to_csv(f"results/results.csv")

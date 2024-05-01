@@ -29,22 +29,26 @@ def adversarial_censorship_fairness(X_train: Iterable[Iterable[float]], X_test: 
             Vector containing the 50% percentile of the survival analysis PDF (test)
 
     Returns:
-        (accuracy1, accuracy2): array-like, shape = (2)
-            Test accuracies of model without access to t_hat and model with access to t_hat
+        (accuracy2_train-accuracy1_train, accuracy2_test-accuracy1_test, accuracy1_train, accuracy2_train, accuracy1_test, accuracy2_test): array-like, shape = (6)
+            Train and test accuracies of model without access to t_hat and model with access to t_hat
     '''
     model1 = LogisticRegression()
     model1.fit(X_train, censored_train)
-    predictions1 = model1.predict(X_test)
-    accuracy1 = accuracy_score(censored_test, predictions1)
+    predictions1_train = model1.predict(X_train)
+    accuracy1_train = accuracy_score(censored_train, predictions1_train)
+    predictions1_test = model1.predict(X_test)
+    accuracy1_test = accuracy_score(censored_test, predictions1_test)
 
     X_train_with_t_hat = np.column_stack((X_train, t_hat_train))
     X_test_with_t_hat = np.column_stack((X_test, t_hat_test))
     model2 = LogisticRegression()
     model2.fit(X_train_with_t_hat, censored_train)
-    predictions2 = model2.predict(X_test_with_t_hat)
-    accuracy2 = accuracy_score(censored_test, predictions2)
+    predictions2_train = model2.predict(X_train_with_t_hat)
+    accuracy2_train = accuracy_score(censored_train, predictions2_train)
+    predictions2_test = model2.predict(X_test_with_t_hat)
+    accuracy2_test = accuracy_score(censored_test, predictions2_test)
 
-    return accuracy2-accuracy1, accuracy1, accuracy2
+    return accuracy2_train-accuracy1_train, accuracy2_test-accuracy1_test, accuracy1_train, accuracy2_train, accuracy1_test, accuracy2_test
 
 def equal_opportunity(X: Iterable[Iterable[float]], groups: Iterable[int], t: Iterable[int], t_hat: Iterable[float], num_bins: int):
     '''
@@ -70,8 +74,10 @@ def equal_opportunity(X: Iterable[Iterable[float]], groups: Iterable[int], t: It
             Number of bins to discretize the survival time range into
         
     Returns:
-        eo_probs: array-like, shape = (num_bins, n_features)
-            Equal opportunity probabilities for each survival time bin, num_features for each bin (1 for each value of the sensitive attribute)
+        average_max_deviation: float
+            Average max deviation in equal probability
+        max_max_deviation: float
+            Max max deviation in equal probability
     '''
     combined = np.concatenate((t, t_hat))
     bins = np.linspace(np.min(combined), np.max(combined), num=num_bins+1)
@@ -82,7 +88,7 @@ def equal_opportunity(X: Iterable[Iterable[float]], groups: Iterable[int], t: It
     for i in range(num_bins):
         for j,group in enumerate(np.unique(groups)):
             eo_probs[i,j] = np.mean(digitized_t[(digitized_t==i) & (groups==group)]==digitized_t_hat[(digitized_t==i) & (groups==group)]) if np.sum((digitized_t==i) & (groups==group))>0 else 0
-    return np.max([np.max(row) - np.min(row) for row in eo_probs])
+    return np.mean([np.max(row) - np.min(row) for row in eo_probs]),np.max([np.max(row) - np.min(row) for row in eo_probs])
 
 def keya_individual_fairness(X: Iterable[Iterable[float]], estimate: Iterable[float], alpha: Optional[float] = 1., distance: Optional[Callable] = lambda x,y: np.linalg.norm(x-y,ord=2)):
     '''

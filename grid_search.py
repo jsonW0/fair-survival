@@ -1,43 +1,23 @@
 import subprocess
-# python run_survival.py --model coxph --dataset synthetic --experiment_name equal --seed 1 --num_trials 5 \
-#     --N 1000 --G 2 --D 1 \
-#     --repr 0.5 0.5 --censorship_repr 0.5 0.5 \
-#     --mean 0 0 --std 1 1 \
-#     --scale 1 1 --shape 1 1 \
-#     --censorship_mean 0 0 --censorship_temp 1 1 --censorship_times 0 1 0 1
-# subprocess.call(["python", "run_survival.py",
-#                 "--model", "coxph",
-#                 "--dataset", "synthetic",
-#                 "--experiment_name", "test",
-#                 "--seed", str(1),
-#                 "--num_trials", str(5),
-#                 "--N", str(1000),
-#                 "--G", str(2),
-#                 "--D", str(1),
-#                 "--repr", "0.5", "0.5",
-#                 "--censorship_repr", "0.5", "0.5",
-#                 "--mean", "0", "0",
-#                 "--std", "1", "1",
-#                 "--scale", "1", "1",
-#                 "--shape", "1", "1",
-#                 "--censorship_mean", "0", "0",
-#                 "--censorship_temp", "1", "1",
-#                 "--censorship_times", "0", "1", "0", "1",]
-#             )
+import time
 
 
-weibulls = [("0.5","1"),("1","1"),("1.5","1"),("5","1"),("4","2")]
+subprocess.call(["bash", "scripts/real_world.sh"])
+weibulls = [("1.5","1"),("4","2")]
 count = 0
+start = time.perf_counter()
+total = 3*2*3*2*2*2*3
 for model in ["coxph","uniform","randomforest"]:
-    for group_repr in [("0.1","0.9"),("0.3","0.7"),("0.5","0.5")]:
-        for censorship_repr in [("0.1","0.9"),("0.3","0.7"),("0.5","0.5"),("0.7","0.3"),("0.9","0.1")]:
-            for mean in [("0","0"),("0","1"),("0","2"),("0","3"),("0","4")]:
+    for group_repr in [("0.1","0.9"),("0.5","0.5")]:
+        for censorship_repr in [("0.1","0.9"),("0.5","0.5"),("0.9","0.1")]:
+            for mean in [("0","0"),("0","5")]:
                 for weibull_i in range(len(weibulls)):
                     for weibull_j in range(len(weibulls)):
                         scale = (weibulls[weibull_i][0],weibulls[weibull_j][0])
                         shape = (weibulls[weibull_i][1],weibulls[weibull_j][1])
-                        for censorship_times in [("0","1","0","1"),("0","1","0","0.25"),("0","1","0.75","1"),("0.75","1","0","1"),("0","0.25","0","1")]:
-                            print(count)
+                        for censorship_times in [("0","1","0","1"),("0","0.1","0.9","1"),("0.9","1","0","0.1")]:
+                            now = time.perf_counter()
+                            print(f"{count}/{total} ({count/total*100:.2f}%) {now-start:.2f}s/{(now-start)/(count/total+1e-6):.2f}s)")
                             experiment_name = f"synthetic_{count}"
                             subprocess.call(["python", "run_survival.py",
                                             "--model", model,
@@ -60,3 +40,4 @@ for model in ["coxph","uniform","randomforest"]:
                                             ]
                                         )
                             count+=1
+subprocess.call(["python", "summarize_results.py"])
