@@ -162,7 +162,7 @@ def generate_synthetic_dataset(
         time = scale[group]*rng.weibull(shape[group])
         original_times.append(time)
         delta = 1
-        if rng.random() < censorship_repr[group]+np.linalg.norm(attribute-censorship_mean[group],ord=2)/censorship_temp[group]:
+        if rng.random() < censorship_repr[group]:#+np.linalg.norm(attribute-censorship_mean[group],ord=2)/censorship_temp[group]:
             delta = 0
             time = time * rng.uniform(censorship_times[group][0],censorship_times[group][1])
 

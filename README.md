@@ -12,6 +12,7 @@ conda install -c sebp scikit-survival
 pip install jupyter
 pip install plotly
 pip install seaborn
+pip install pygwalker
 ```
 
 ## Background

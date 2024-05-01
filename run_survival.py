@@ -1,18 +1,27 @@
 import os
+import sys
 import time
 import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import pygwalker as pyg
 from sksurv.util import check_y_survival
 from survival_models import FittedUniformBaseline
 from sksurv.nonparametric import SurvivalFunctionEstimator
 from sksurv.linear_model import CoxPHSurvivalAnalysis
-from sksurv.tree import SurvivalTree
+from sksurv.ensemble import RandomSurvivalForest
 from sksurv.svm import FastSurvivalSVM
 from dataset_utils import load_dataset, preprocess_dataset, generate_synthetic_dataset
 import metrics
 
+class HidePrint:
+    def __enter__(self):
+        self._original_stdout = sys.stdout
+        sys.stdout = open(os.devnull, 'w')
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        sys.stdout.close()
+        sys.stdout = self._original_stdout
 '''
 Script run_survival.py
 
@@ -74,6 +83,10 @@ def main():
             dataset = load_dataset(args.dataset)
             true_times = None
         dataset.to_csv(f"results/{args.experiment_name}/dataset_{trial}.csv")
+        # with HidePrint():
+        #     walker = pyg.walk(dataset)
+        #     with open(f"results/{args.experiment_name}/dataset_{trial}.html","w") as f:
+        #         f.write(walker.to_html())
         X_train, X_test, Y_train, Y_test, G_train, G_test, indices_train, indices_test = preprocess_dataset(dataset)
         
         train_true_times = true_times[indices_train] if true_times is not None else None
@@ -86,6 +99,8 @@ def main():
             estimator = CoxPHSurvivalAnalysis(alpha=0.1).fit(X_train, Y_train.to_records(index=False))
         elif args.model == "uniform":
             estimator = FittedUniformBaseline(alpha=0.1).fit(X_train, Y_train.to_records(index=False))
+        elif args.model == "randomforest":
+            estimator = RandomSurvivalForest(n_estimators=100).fit(X_train, Y_train.to_records(index=False))
         else:
             raise NotImplementedError(f"{args.model} has not been implemented.")
 
@@ -122,7 +137,7 @@ def main():
             concordance_index_ipcw = metrics.concordance_index_ipcw(Y_train.to_records(index=False),Y_test.to_records(index=False),test_risk_scores,tau=max_time)
             brier_score = metrics.brier_score(Y_train.to_records(index=False),Y_test[Y_test["event_time"]<max_time].to_records(index=False),np.tile(test_risk_scores[Y_test["event_time"]<max_time][:,None],(1,100)),np.linspace(min_time2,max_time2,102)[1:-1])
             integrated_brier_score = metrics.integrated_brier_score(Y_train.to_records(index=False),Y_test[Y_test["event_time"]<max_time].to_records(index=False),np.tile(test_risk_scores[Y_test["event_time"]<max_time][:,None],(1,100)),np.linspace(min_time2,max_time2,102)[1:-1])
-            cumulative_dynamic_auc = metrics.cumulative_dynamic_auc(Y_train.to_records(index=False),Y_test[Y_test["event_time"]<max_time].to_records(index=False),test_risk_scores[Y_test["event_time"]<max_time],np.linspace(min_time2,max_time2,102)[1:-1])
+            cumulative_dynamic_auc = metrics.cumulative_dynamic_auc(Y_train.to_records(index=False),Y_test[Y_test["event_time"]<max_time].to_records(index=False),test_risk_scores[Y_test["event_time"]<max_time],np.linspace(min_time2,max_time2,122)[11:-11])
             plt.figure()
             plt.plot(brier_score[0],brier_score[1])
             plt.xlabel("Time")
@@ -144,7 +159,7 @@ def main():
             keya_intersectional = metrics.keya_intersectional_fairness(test_risk_scores,G_test.to_numpy()==np.unique(G_test.to_numpy())[:,None])
             rahman_censorship_individual = metrics.rahman_censorship_individual_fairness(X_test.to_numpy(),test_risk_scores,Y_test["event_time"].to_numpy(),Y_test["event_indicator"].to_numpy())
             rahman_censorship_group = metrics.rahman_censorship_group_fairness(X_test.to_numpy(),test_risk_scores,G_test.to_numpy()==np.unique(G_test.to_numpy())[:,None],Y_test["event_time"].to_numpy(),Y_test["event_indicator"].to_numpy())
-            equal_opportunity = metrics.equal_opportunity(X_test.to_numpy(),G_test.to_numpy(),test_true_times if test_true_times is not None else Y_test["event_time"].to_numpy(),test_half_life,10)
+            equal_opportunity = metrics.equal_opportunity(X_test.to_numpy(),G_test.to_numpy(),test_true_times if test_true_times is not None else Y_test["event_time"].to_numpy(),test_half_life,5)
             adversarial_censorship = metrics.adversarial_censorship_fairness(X_train.to_numpy(),X_test.to_numpy(),Y_train["event_indicator"].to_numpy(),Y_test["event_indicator"].to_numpy(),train_risk_scores,test_risk_scores)
 
             # Reporting out

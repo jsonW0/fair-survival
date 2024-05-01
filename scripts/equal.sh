@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Equal Synthetic Dataset
+# No Bias Dataset
 
 python run_survival.py --model coxph --dataset synthetic --experiment_name equal --seed 1 --num_trials 5 \
     --N 1000 --G 2 --D 1 \
