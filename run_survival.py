@@ -4,6 +4,7 @@ import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from sksurv.util import check_y_survival
 from survival_models import FittedUniformBaseline
 from sksurv.nonparametric import SurvivalFunctionEstimator
 from sksurv.linear_model import CoxPHSurvivalAnalysis
@@ -104,13 +105,20 @@ def main():
         train_half_life = np.array([fn.x[np.argmax(fn(fn.x)<=0.5)] for fn in estimator.predict_survival_function(X_train)])
         test_half_life = np.array([fn.x[np.argmax(fn(fn.x)<=0.5)] for fn in estimator.predict_survival_function(X_test)])
 
+        # Some wizardry to crop the times correctly
+        min_time = Y_train[Y_train["event_indicator"]]["event_time"].min()
+        max_time = Y_train[Y_train["event_indicator"]]["event_time"].max()
+        _, test_time = check_y_survival(Y_test[Y_test["event_time"]<max_time].to_records(index=False))
+        min_time2 = test_time.min()
+        max_time2 = test_time.max()
+
         with open(f"results/{args.experiment_name}/{args.experiment_name}_metrics_{trial}.txt","w") as f:
             # Accuracy Metrics
             concordance_index_censored = metrics.concordance_index_censored(Y_test["event_indicator"],Y_test["event_time"],test_risk_scores)
-            concordance_index_ipcw = metrics.concordance_index_ipcw(Y_train.to_records(index=False),Y_test.to_records(index=False),test_risk_scores)
-            brier_score = metrics.brier_score(Y_train.to_records(index=False),Y_test.to_records(index=False),np.tile(test_risk_scores[:,None],(1,100)),np.linspace(Y_test["event_time"].min()+1e-6,Y_test["event_time"].max()-1e-6,100))
-            integrated_brier_score = metrics.integrated_brier_score(Y_train.to_records(index=False),Y_test.to_records(index=False),np.tile(test_risk_scores[:,None],(1,100)),np.linspace(Y_test["event_time"].min()+1e-6,Y_test["event_time"].max()-1e-6,100))
-            cumulative_dynamic_auc = metrics.cumulative_dynamic_auc(Y_train.to_records(index=False),Y_test.to_records(index=False),test_risk_scores,np.linspace(Y_test["event_time"].min()+1e-6,Y_test["event_time"].max()-1e-6,100))
+            concordance_index_ipcw = metrics.concordance_index_ipcw(Y_train.to_records(index=False),Y_test.to_records(index=False),test_risk_scores,tau=max_time)
+            brier_score = metrics.brier_score(Y_train.to_records(index=False),Y_test[Y_test["event_time"]<max_time].to_records(index=False),np.tile(test_risk_scores[Y_test["event_time"]<max_time][:,None],(1,100)),np.linspace(min_time2,max_time2,102)[1:-1])
+            integrated_brier_score = metrics.integrated_brier_score(Y_train.to_records(index=False),Y_test[Y_test["event_time"]<max_time].to_records(index=False),np.tile(test_risk_scores[Y_test["event_time"]<max_time][:,None],(1,100)),np.linspace(min_time2,max_time2,102)[1:-1])
+            cumulative_dynamic_auc = metrics.cumulative_dynamic_auc(Y_train.to_records(index=False),Y_test[Y_test["event_time"]<max_time].to_records(index=False),test_risk_scores[Y_test["event_time"]<max_time],np.linspace(min_time2,max_time2,102)[1:-1])
             plt.figure()
             plt.plot(brier_score[0],brier_score[1])
             plt.xlabel("Time")
@@ -119,7 +127,7 @@ def main():
             plt.grid()
             plt.savefig(f"results/{args.experiment_name}/{args.experiment_name}_brier_{trial}.png")
             plt.figure()
-            plt.plot(np.linspace(Y_test["event_time"].min()+1e-6,Y_test["event_time"].max()-1e-6,100),cumulative_dynamic_auc[0])
+            plt.plot(np.linspace(Y_train["event_time"].min(),Y_train["event_time"].max(),102)[1:-1],cumulative_dynamic_auc[0])
             plt.xlabel("Time")
             plt.ylabel("Cumulative Dynamic AUC")
             plt.title("Cumulative Dynamic AUC")
@@ -177,13 +185,15 @@ def main():
 
     # Aggregate results
     for key in list(results.keys()):
-        results[key+"__mean"] = np.mean(results[key]) if not isinstance(results[key][0],tuple) else tuple(np.mean([results[key][j][i] for j in range(args.num_trials)]) for i in range(len(results[key][0])))
-        results[key+"__std"] = np.std(results[key]) if not isinstance(results[key][0],tuple) else tuple(np.std([results[key][j][i] for j in range(args.num_trials)]) for i in range(len(results[key][0])))
+        results[key+"__mean"] = np.nanmean(results[key]) if not isinstance(results[key][0],tuple) else tuple(np.nanmean([results[key][j][i] for j in range(args.num_trials)]) for i in range(len(results[key][0])))
+        results[key+"__std"] = np.nanstd(results[key]) if not isinstance(results[key][0],tuple) else tuple(np.nanstd([results[key][j][i] for j in range(args.num_trials)]) for i in range(len(results[key][0])))
         # compute as 95% CI as +-2std/sqrt(n)
 
     with open(f"results/{args.experiment_name}/{args.experiment_name}_results.txt","w") as f:
+        print(f"\n\n================================\n{args.experiment_name}\n================================")
         f.write(f"{args.experiment_name}\n")
         for key,value in results.items():
+            print(f"{key}: {value}")
             f.write(f"{key}: {value}\n")
 
 if __name__ == "__main__":
