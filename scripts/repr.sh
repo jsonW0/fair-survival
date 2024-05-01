@@ -2,8 +2,8 @@
 
 # Equal Synthetic Dataset
 
-python run_survival.py --model coxph --dataset synthetic --experiment_name equal --seed 1 --num_trials 5 \
-    --N 1000 --G 2 --D 1 \
+python run_survival.py --model coxph --dataset synthetic --experiment_name repr --seed 1 \
+    --N 10000 --G 2 --D 1 \
     --repr 0.5 0.5 --censorship_repr 0.5 0.5 \
     --mean 0 0 --std 1 1 \
     --scale 1 1 --shape 1 1 \
