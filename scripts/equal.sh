@@ -2,7 +2,7 @@
 
 # No Bias Dataset
 
-python run_survival.py --model coxph --dataset synthetic --experiment_name equal --seed 1 --num_trials 5 \
+python3 run_survival.py --model coxph --dataset synthetic --experiment_name equal --seed 1 --num_trials 5 \
     --N 1000 --G 2 --D 1 \
     --repr 0.5 0.5 --censorship_repr 0.5 0.5 \
     --mean 0 0 --std 1 1 \
