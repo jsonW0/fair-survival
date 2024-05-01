@@ -81,7 +81,7 @@ def equal_opportunity(X: Iterable[Iterable[float]], groups: Iterable[int], t: It
     eo_probs = np.zeros((num_bins, len(np.unique(groups))))
     for i in range(num_bins):
         for j,group in enumerate(np.unique(groups)):
-            eo_probs[i,j] = np.mean(digitized_t[(digitized_t==i) & (groups==group)]==digitized_t_hat[(digitized_t==i) & (groups==group)])
+            eo_probs[i,j] = np.mean(digitized_t[(digitized_t==i) & (groups==group)]==digitized_t_hat[(digitized_t==i) & (groups==group)]) if np.sum((digitized_t==i) & (groups==group))>0 else 0
     return np.max([np.max(row) - np.min(row) for row in eo_probs])
 
 def keya_individual_fairness(X: Iterable[Iterable[float]], estimate: Iterable[float], alpha: Optional[float] = 1., distance: Optional[Callable] = lambda x,y: np.linalg.norm(x-y,ord=2)):

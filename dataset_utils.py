@@ -77,7 +77,7 @@ def preprocess_dataset(dataset: pd.DataFrame) -> tuple[pd.DataFrame,pd.DataFrame
     Y = dataset[["event_indicator","event_time","demographic_group"]]
 
     # Train Test Split
-    X_train, X_test, Y_train, Y_test = train_test_split(X,Y,test_size=0.2,random_state=226,shuffle=True)
+    X_train, X_test, Y_train, Y_test, indices_train, indices_test = train_test_split(X,Y,np.arange(X.shape[0]),test_size=0.2,random_state=226,shuffle=True)
    
     # Extract Group
     G_train = Y_train["demographic_group"]
@@ -103,7 +103,7 @@ def preprocess_dataset(dataset: pd.DataFrame) -> tuple[pd.DataFrame,pd.DataFrame
     X_train = transformer.transform(X_train)
     X_test = transformer.transform(X_test)
 
-    return X_train, X_test, Y_train, Y_test, G_train, G_test
+    return X_train, X_test, Y_train, Y_test, G_train, G_test, indices_train, indices_test
     
 def generate_synthetic_dataset(
     N: int,
@@ -154,11 +154,13 @@ def generate_synthetic_dataset(
     features = []
     groups = []
     times = []
+    original_times = []
     deltas = []
     for i in range(N):
         group = rng.choice(G,p=repr)
         attribute = rng.standard_normal(D)@std[group]+mean[group]
         time = scale[group]*rng.weibull(shape[group])
+        original_times.append(time)
         delta = 1
         if rng.random() < censorship_repr[group]+np.linalg.norm(attribute-censorship_mean[group],ord=2)/censorship_temp[group]:
             delta = 0
@@ -173,4 +175,4 @@ def generate_synthetic_dataset(
     dataset["demographic_group"] = groups
     dataset["event_time"] = times
     dataset["event_indicator"] = np.array(deltas).astype(bool)
-    return pd.DataFrame(dataset)
+    return pd.DataFrame(dataset), np.array(original_times)

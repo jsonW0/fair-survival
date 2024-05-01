@@ -69,11 +69,15 @@ def main():
 
         # Load survival 
         if args.dataset=="synthetic":
-            dataset = generate_synthetic_dataset(N=args.N,G=args.G,D=args.D,repr=np.array(args.repr).reshape(args.G),censorship_repr=np.array(args.censorship_repr).reshape(args.G),mean=np.array(args.mean).reshape(args.G,args.D),std=np.array(args.std).reshape(args.G,args.D,args.D),scale=np.array(args.scale).reshape(args.G),shape=np.array(args.shape).reshape(args.G),censorship_mean=np.array(args.censorship_mean).reshape(args.G,args.D),censorship_temp=np.array(args.censorship_temp).reshape(args.G),censorship_times=np.array(args.censorship_times).reshape(args.G,2),seed=args.seed+trial)
+            dataset, true_times = generate_synthetic_dataset(N=args.N,G=args.G,D=args.D,repr=np.array(args.repr).reshape(args.G),censorship_repr=np.array(args.censorship_repr).reshape(args.G),mean=np.array(args.mean).reshape(args.G,args.D),std=np.array(args.std).reshape(args.G,args.D,args.D),scale=np.array(args.scale).reshape(args.G),shape=np.array(args.shape).reshape(args.G),censorship_mean=np.array(args.censorship_mean).reshape(args.G,args.D),censorship_temp=np.array(args.censorship_temp).reshape(args.G),censorship_times=np.array(args.censorship_times).reshape(args.G,2),seed=args.seed+trial)
         else:
             dataset = load_dataset(args.dataset)
+            true_times = None
         dataset.to_csv(f"results/{args.experiment_name}/dataset_{trial}.csv")
-        X_train, X_test, Y_train, Y_test, G_train, G_test = preprocess_dataset(dataset)
+        X_train, X_test, Y_train, Y_test, G_train, G_test, indices_train, indices_test = preprocess_dataset(dataset)
+        
+        train_true_times = true_times[indices_train] if true_times is not None else None
+        test_true_times = true_times[indices_test] if true_times is not None else None
 
         #################################################################################
 
@@ -140,7 +144,7 @@ def main():
             keya_intersectional = metrics.keya_intersectional_fairness(test_risk_scores,G_test.to_numpy()==np.unique(G_test.to_numpy())[:,None])
             rahman_censorship_individual = metrics.rahman_censorship_individual_fairness(X_test.to_numpy(),test_risk_scores,Y_test["event_time"].to_numpy(),Y_test["event_indicator"].to_numpy())
             rahman_censorship_group = metrics.rahman_censorship_group_fairness(X_test.to_numpy(),test_risk_scores,G_test.to_numpy()==np.unique(G_test.to_numpy())[:,None],Y_test["event_time"].to_numpy(),Y_test["event_indicator"].to_numpy())
-            equal_opportunity = metrics.equal_opportunity(X_test.to_numpy(),G_test.to_numpy(),Y_test["event_time"].to_numpy(),test_half_life,5)
+            equal_opportunity = metrics.equal_opportunity(X_test.to_numpy(),G_test.to_numpy(),test_true_times if test_true_times is not None else Y_test["event_time"].to_numpy(),test_half_life,10)
             adversarial_censorship = metrics.adversarial_censorship_fairness(X_train.to_numpy(),X_test.to_numpy(),Y_train["event_indicator"].to_numpy(),Y_test["event_indicator"].to_numpy(),train_risk_scores,test_risk_scores)
 
             # Reporting out
