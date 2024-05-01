@@ -15,6 +15,12 @@ pip install seaborn
 pip install pygwalker
 ```
 
+## Running Experiments
+
+Run `bash scripts/[name_of_script].sh` to run an experiment.
+
+Visualize the experiment results by running `python summarize_results.py`. That will produce `results/results.html` based on all experiments saved under `results`. This html is an interactive pygwalker visualizer.
+
 ## Background
 
 In survival analysis, we observe $(x,T,\delta)$ triplets where $\delta$ is `True` if the event was actually observed and `False` if censored.
@@ -39,9 +45,7 @@ Our code is organized as follows:
 - `run_survival.py` is the script for running an experiment.
 - `dataset_utils.py` details the loading and processing of a survival analysis dataset.
 - `metrics.py` details the metrics (accuracy, fairness) for evaluation on a survival analysis dataset and the survival predictions.
+- `survival_models.py` contains survival analysis models.
+- `summarize_results.py` summarizes the results in `results/`.
 - `scripts/` is a folder dedicated to holding any experiment bash scripts.
-- `data/` is a folder dedicated to holding any custom datasets.
-- `models/` is a folder dedicated to holding any saved models.
-
-## Citations
-Keya et al. 2021: https://github.com/kkeya1/FairSurv
+- `results/` is a folder deidcated to storing all results of the experiments
