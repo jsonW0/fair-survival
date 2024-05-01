@@ -4,7 +4,11 @@ import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from survival_models import FittedUniformBaseline
+from sksurv.nonparametric import SurvivalFunctionEstimator
 from sksurv.linear_model import CoxPHSurvivalAnalysis
+from sksurv.tree import SurvivalTree
+from sksurv.svm import FastSurvivalSVM
 from dataset_utils import load_dataset, preprocess_dataset, generate_synthetic_dataset
 import metrics
 
@@ -60,6 +64,8 @@ def main():
     # Train an estimator
     if args.model == "coxph":
         estimator = CoxPHSurvivalAnalysis(alpha=0.1).fit(X_train, Y_train.to_records(index=False))
+    elif args.model == "uniform":
+        estimator = FittedUniformBaseline(alpha=0.1).fit(X_train, Y_train.to_records(index=False))
     else:
         raise NotImplementedError(f"{args.model} has not been implemented.")
 
@@ -68,13 +74,8 @@ def main():
     # Evaluate the model
     surv_funcs = estimator.predict_survival_function(X_test)
     plt.figure()
-    # count = 0
     for fn in surv_funcs:
-        # if count==20:
         plt.step(fn.x, fn(fn.x), where="post", alpha=0.5, c="tab:blue")
-        # plt.axvline(fn.x[np.argmax(fn(fn.x)<=0.5)],c="k")
-            # break
-        # count+=1
     plt.ylim(0, 1)
     plt.xlabel("Time")
     plt.ylabel("Survival Probability")
@@ -85,8 +86,8 @@ def main():
     train_risk_scores = np.exp(estimator.predict(X_train))
     test_risk_scores = np.exp(estimator.predict(X_test))
 
-    train_t_hat = np.array([fn.x[np.argmax(fn(fn.x)<=0.5)] for fn in estimator.predict_survival_function(X_train)])
-    test_t_hat = np.array([fn.x[np.argmax(fn(fn.x)<=0.5)] for fn in estimator.predict_survival_function(X_test)])
+    train_half_life = np.array([fn.x[np.argmax(fn(fn.x)<=0.5)] for fn in estimator.predict_survival_function(X_train)])
+    test_half_life = np.array([fn.x[np.argmax(fn(fn.x)<=0.5)] for fn in estimator.predict_survival_function(X_test)])
 
     with open(f"results/{args.experiment_name}/{args.experiment_name}_metrics.txt","w") as f:
         # Accuracy Metrics
@@ -116,7 +117,7 @@ def main():
         keya_intersectional = metrics.keya_intersectional_fairness(test_risk_scores,G_test.to_numpy()==np.unique(G_test.to_numpy())[:,None])
         rahman_censorship_individual = metrics.rahman_censorship_individual_fairness(X_test.to_numpy(),test_risk_scores,Y_test["event_time"].to_numpy(),Y_test["event_indicator"].to_numpy())
         rahman_censorship_group = metrics.rahman_censorship_group_fairness(X_test.to_numpy(),test_risk_scores,G_test.to_numpy()==np.unique(G_test.to_numpy())[:,None],Y_test["event_time"].to_numpy(),Y_test["event_indicator"].to_numpy())
-        equal_opportunity = metrics.equal_opportunity(X_test.to_numpy(),G_test.to_numpy(),Y_test["event_time"].to_numpy(),test_t_hat,2)
+        equal_opportunity = metrics.equal_opportunity(X_test.to_numpy(),G_test.to_numpy(),Y_test["event_time"].to_numpy(),test_half_life,5)
         adversarial_censorship = metrics.adversarial_censorship_fairness(X_train.to_numpy(),X_test.to_numpy(),Y_train["event_indicator"].to_numpy(),Y_test["event_indicator"].to_numpy(),train_risk_scores,test_risk_scores)
 
         # Reporting out

@@ -243,4 +243,4 @@ def rahman_censorship_group_fairness(X: Iterable[Iterable[float]], estimate: Ite
                     deviation = max(0,np.abs(estimate[group_membership[group]][i]-estimate[group_membership[group]][j])-alpha*distance(X[group_membership[group]][i],X[group_membership[group]][j]))
                     total_deviation+=deviation
                     max_deviation = max(max_deviation,deviation)
-    return total_deviation/(len(np.argwhere(~event_indicator))*len(np.argwhere(event_indicator))), max_deviation
+    return float(total_deviation/(len(np.argwhere(~event_indicator))*len(np.argwhere(event_indicator)))), float(max_deviation)
